@@ -6,6 +6,7 @@ export class Input {
     this.pressed = new Set(); // keys pressed this frame
     this.mouse = { dx: 0, dy: 0, buttons: new Set(), clicked: new Set(), released: new Set(), wheel: 0 };
     this.locked = false;
+    this.lockedAt = 0;
     this.enabled = true;
     this.onLockChange = null;
     this.listeners = [];
@@ -30,8 +31,12 @@ export class Input {
     });
     on(document, 'mousemove', (e) => {
       if (!this.locked) return;
-      this.mouse.dx += e.movementX || 0;
-      this.mouse.dy += e.movementY || 0;
+      // Chrome can report a huge bogus delta right after pointer lock engages; drop those
+      if (performance.now() - this.lockedAt < 150) return;
+      const mx = e.movementX || 0, my = e.movementY || 0;
+      if (Math.abs(mx) > 400 || Math.abs(my) > 400) return;
+      this.mouse.dx += mx;
+      this.mouse.dy += my;
     });
     on(canvas, 'mousedown', (e) => {
       if (!this.locked) return;
@@ -48,6 +53,7 @@ export class Input {
     }, { passive: true });
     on(document, 'pointerlockchange', () => {
       this.locked = document.pointerLockElement === canvas;
+      if (this.locked) this.lockedAt = performance.now();
       if (!this.locked) { this.mouse.buttons.clear(); this.keys.clear(); }
       if (this.onLockChange) this.onLockChange(this.locked);
     });

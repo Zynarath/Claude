@@ -1,9 +1,9 @@
 <!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#000}canvas{display:block}</style>
-<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script></head><body>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js"}}</script></head><body>
 <script type="module">
 import * as THREE from 'three';
-import { CREATURE_LIST } from './src/data/creatures.js';
-import { buildCreatureModel, animateRig } from './src/game/creatureModels.js';
+import { CREATURE_LIST } from '../src/data/creatures.js';
+import { buildCreatureModel, animateRig } from '../src/game/creatureModels.js';
 const params=new URLSearchParams(location.search);
 const ids=(params.get('ids')||'').split(',').filter(Boolean);
 const list = ids.length ? CREATURE_LIST.filter(d=>ids.includes(d.id)) : CREATURE_LIST;

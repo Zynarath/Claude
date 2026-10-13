@@ -315,14 +315,20 @@ class Game {
   // ------------------------------------------------------------------ main loop
   frame(t) {
     requestAnimationFrame((tt) => this.frame(tt));
-    const dt = Math.min(0.05, (t - this.lastT) / 1000 || 0.016);
+    // simulate in ≤50 ms steps so slow frames don't turn into slow motion or tunnelling
+    const total = Math.min(0.2, Math.max(0.001, (t - this.lastT) / 1000 || 0.016));
     this.lastT = t;
     this.frames++;
-    this.fpsTime += dt;
+    this.fpsTime += total;
     if (this.fpsTime >= 0.5) { this.fps = Math.round(this.frames / this.fpsTime); this.frames = 0; this.fpsTime = 0; }
+    const steps = Math.ceil(total / 0.05);
+    const dt = total / steps;
     try {
-      if (this.state === 'menu') this.updateMenu(dt);
-      else if (this.state === 'playing' || this.state === 'dead') this.update(dt);
+      for (let i = 0; i < steps; i++) {
+        if (this.state === 'menu') this.updateMenu(dt);
+        else if (this.state === 'playing' || this.state === 'dead') this.update(dt);
+        if (i < steps - 1) this.input.endFrame(); // one-shot inputs apply to the first step only
+      }
     } catch (err) {
       console.error(err);
     }
@@ -423,6 +429,7 @@ class Game {
       if (inp.hit(`Digit${(i + 1) % 10}`)) this.pressHotbar(i);
     }
     if (inp.mouse.wheel && !this.isPlacing()) this.cycleHotbar(inp.mouse.wheel);
+    if (inp.hit('Escape')) { this.ui.showPause(); return; }
     if (inp.hit('KeyI')) { this.openInventory(null); return; }
     if (inp.hit('KeyM')) { this.ui.showMap(); return; }
     if (inp.hit('KeyK')) this.thirdPerson = !this.thirdPerson;
@@ -1436,9 +1443,11 @@ class Game {
     const pos = p.pos;
     let t = this.sky.baseTemperature();
     const alt = Math.max(0, pos.y - 40);
-    t -= alt * 0.045;
+    t -= alt * 0.06;
     const b = this.terrain.biomeAt(pos.x, pos.z);
-    if (b === BIOME.VOLCANO) t += 14 * smoothstep(VOLCANO.r * 0.6, 60, Math.hypot(pos.x - VOLCANO.x, pos.z - VOLCANO.z));
+    // the volcano radiates heat that outweighs its altitude
+    const dv = Math.hypot(pos.x - VOLCANO.x, pos.z - VOLCANO.z);
+    if (dv < VOLCANO.r * 0.6) t += 26 * smoothstep(VOLCANO.r * 0.6, 60, dv);
     if (b === BIOME.JUNGLE) t += 3;
     if (b === BIOME.BEACH) t += 1;
     if (p.swimming || p.headUnder) t -= 7;

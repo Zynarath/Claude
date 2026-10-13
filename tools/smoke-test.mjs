@@ -247,6 +247,106 @@ await step('open every UI screen', () => {
   return 'ok';
 });
 
+await step('mortar → narcotics, forge → ingots, smithy → metal pick (station crafting)', () => {
+  const g = window.__game, p = g.player;
+  ['mortar_and_pestle', 'refining_forge', 'smithy', 'narcotic', 'metal_pick'].forEach((id) => p.known.add(id));
+  const B = g.building;
+  const at = (dx) => ({ x: p.pos.x + dx, z: p.pos.z + 4 });
+  const mk = (type, dx) => { const q = at(dx); return B.create(type, q.x, g.terrain.getHeight(q.x, q.z), q.z, 0); };
+  const mortar = mk('mortar_and_pestle', -3), forge = mk('refining_forge', 0), smithy = mk('smithy', 3);
+  mortar.inventory.add('narcoberry', 10); mortar.inventory.add('spoiled_meat', 2);
+  const okN = g.craft('narcotic', mortar) && g.craft('narcotic', mortar);
+  for (let i = 0; i < 60; i++) g.updateStations(0.05);
+  forge.inventory.add('metal', 4); forge.inventory.add('wood', 4);
+  B.setLit(forge, true);
+  for (let i = 0; i < 900; i++) B.update(0.05);
+  const ingots = forge.inventory.count('metal_ingot');
+  smithy.inventory.add('metal_ingot', ingots); smithy.inventory.add('wood', 1); smithy.inventory.add('hide', 10);
+  const okP = g.craft('metal_pick', smithy);
+  for (let i = 0; i < 200; i++) g.updateStations(0.05);
+  const wrongStation = g.craft('narcotic'); // must fail outside the mortar
+  return { okN, narcotics: mortar.inventory.count('narcotic'), ingots, okP, metalPick: smithy.inventory.count('metal_pick'), wrongStation };
+}, (r) => r.okN && r.narcotics === 2 && r.ingots === 2 && r.okP && r.metalPick === 1 && r.wrongStation === false);
+
+await step('raw meat spoils into spoiled meat; preserving bin slows it', () => {
+  const g = window.__game, p = g.player;
+  // stacks spoil one unit at a time (600 s each for raw meat), like ARK
+  p.inventory.add('raw_meat', 2);
+  for (let i = 0; i < 125; i++) p.inventory.update(10);
+  const bin = g.building.create('preserving_bin', p.pos.x + 6, p.pos.y, p.pos.z, 0);
+  bin.inventory.add('raw_meat', 2);
+  for (let i = 0; i < 125; i++) bin.inventory.update(10);
+  return { raw: p.inventory.count('raw_meat'), spoiled: p.inventory.count('spoiled_meat'), binRaw: bin.inventory.count('raw_meat') };
+}, (r) => r.raw === 0 && r.spoiled >= 2 && r.binRaw === 2);
+
+await step('temperature: mountain night is cold, campfire warms, volcano is hot', () => {
+  const g = window.__game, p = g.player;
+  const save = p.pos.clone();
+  g.sky.time = 3;
+  // highest point of the northern range
+  let best = { h: -1 };
+  for (let x = -1200; x <= 1200; x += 40) for (let z = -1500; z <= -600; z += 40) { const h = g.terrain.getHeight(x, z); if (h > best.h) best = { x, z, h }; }
+  p.pos.set(best.x, best.h, best.z);
+  const mountain = g.computeTemperature();
+  const fire = g.building.create('campfire', p.pos.x + 1, p.pos.y, p.pos.z, 0); fire.lit = true;
+  const byFire = g.computeTemperature();
+  g.building.remove(fire);
+  g.sky.time = 13;
+  p.pos.set(260 + 100, 0, -180); p.pos.y = g.terrain.getHeight(p.pos.x, p.pos.z);
+  const volcano = g.computeTemperature();
+  p.pos.copy(save);
+  return { peak: Math.round(best.h), mountain: Math.round(mountain), byFire: Math.round(byFire), volcano: Math.round(volcano) };
+}, (r) => r.mountain < 10 && r.byFire > r.mountain + 8 && r.volcano > 30);
+
+await step('tame and fly a Pteranodon', () => {
+  const g = window.__game, p = g.player;
+  if (g.ui.current) g.ui.close();
+  const def = g.creatures.list.find((c) => c.def.id === 'pteranodon')?.def;
+  if (!def) return { skipped: true };
+  const pt = g.creatures.spawnAt(def, p.pos.x + 4, p.pos.z, 5, { tamed: true });
+  pt.tamed = true; pt.owned = true; pt.flying = false; pt.pos.y = g.terrain.getHeight(pt.pos.x, pt.pos.z);
+  g.creatures.ensureModel(pt);
+  p.inventory.add('ptera_saddle', 1);
+  g.equipSaddle(pt, p.inventory.find('ptera_saddle').uid);
+  g.mount(pt);
+  const y0 = pt.pos.y;
+  g.input.keys.add('Space');
+  for (let i = 0; i < 40; i++) g.update(0.05);
+  g.input.keys.delete('Space');
+  g.input.keys.add('KeyW');
+  const start = pt.pos.clone();
+  for (let i = 0; i < 40; i++) g.update(0.05);
+  g.input.keys.delete('KeyW');
+  const res = { flying: pt.flying, climbed: +(pt.pos.y - y0).toFixed(1), flew: +pt.pos.distanceTo(start).toFixed(1) };
+  g.dismount();
+  return res;
+}, (r) => r.skipped || (r.flying && r.climbed > 3 && r.flew > 10));
+
+await step('supply drop: level gate and loot', () => {
+  const g = window.__game, p = g.player;
+  const d = g.landmarks.spawnDrop(p.pos);
+  d.falling = 1; for (let i = 0; i < 5; i++) g.landmarks.update(0.1);
+  const items = d.inventory.stacks.length;
+  const lvl = p.level;
+  p.level = 1; g.openSupplyDrop(d); const blocked = g.ui.current !== 'inventory';
+  p.level = Math.max(lvl, 60); g.openSupplyDrop(d); const opened = g.ui.current === 'inventory';
+  g.ui.close(); p.level = lvl;
+  return { tier: d.tier.name, landed: d.landed, items, blocked, opened };
+}, (r) => r.landed && r.items > 0 && r.blocked && r.opened);
+
+await step('sleeping bag respawn is single-use; demolish refunds materials', () => {
+  const g = window.__game, p = g.player;
+  const bag = g.building.create('sleeping_bag', p.pos.x + 3, p.pos.y, p.pos.z, 0);
+  g.killPlayer('test');
+  g.respawn({ bed: bag });
+  const atBag = Math.hypot(p.pos.x - bag.x, p.pos.z - bag.z) < 4;
+  const bagGone = !g.building.list.includes(bag);
+  const wall = g.building.create('wood_wall', p.pos.x + 5, p.pos.y, p.pos.z, 0);
+  const woodBefore = p.inventory.count('wood');
+  g.demolish(wall);
+  return { atBag, bagGone, refund: p.inventory.count('wood') - woodBefore };
+}, (r) => r.atBag && r.bagGone && r.refund === 2);
+
 await step('simulate 2 minutes of the living world', () => {
   const g = window.__game;
   for (let i = 0; i < 2400; i++) g.update(0.05);

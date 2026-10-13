@@ -199,13 +199,13 @@ export class Sky {
     const hor = this.uniforms.uHorizon.value;
     top.copy(PALETTE.nightTop).lerp(PALETTE.dayTop, dayF).lerp(PALETTE.duskTop, duskF * 0.5);
     hor.copy(PALETTE.nightHorizon).lerp(PALETTE.dayHorizon, dayF).lerp(PALETTE.duskHorizon, duskF * smoothstep(-0.15, 0.05, elev));
-    const grey = new THREE.Color(0.45, 0.48, 0.52).multiplyScalar(0.2 + 0.8 * dayF);
-    top.lerp(grey, this.rain * 0.75);
-    hor.lerp(grey, this.rain * 0.7);
+    const grey = new THREE.Color(0.2, 0.22, 0.25).multiplyScalar(0.15 + 0.85 * dayF);
+    top.lerp(grey, this.rain * 0.85);
+    hor.lerp(grey.clone().multiplyScalar(1.25), this.rain * 0.8);
     this.uniforms.uStars.value = (1 - smoothstep(-0.2, 0.05, elev)) * (1 - this.rain);
     this.uniforms.uTime.value = this.elapsed;
     this.uniforms.uCloudCover.value = 0.42 + this.rain * 0.5;
-    this.uniforms.uCloudLight.value = 0.15 + 0.85 * dayF;
+    this.uniforms.uCloudLight.value = (0.15 + 0.85 * dayF) * (1 - this.rain * 0.55);
     this.uniforms.uSunColor.value.setRGB(1, lerp(0.55, 0.92, smoothstep(0, 0.4, elev)), lerp(0.3, 0.8, smoothstep(0, 0.4, elev)));
 
     // lights: the directional light follows the sun by day and the moon by night
@@ -214,10 +214,10 @@ export class Sky {
     this.sun.position.set(camPos.x + lightDir.x * 300, camPos.y + Math.max(lightDir.y, 0.15) * 300, camPos.z + lightDir.z * 300);
     this.sun.target.position.set(camPos.x, camPos.y, camPos.z);
     // snap shadow camera to texels to avoid shimmering
-    const sunI = moonUp ? 0.28 * (1 - this.rain * 0.6) : (0.2 + 2.3 * smoothstep(-0.02, 0.3, elev)) * (1 - this.rain * 0.55);
+    const sunI = moonUp ? 0.28 * (1 - this.rain * 0.6) : (0.2 + 2.3 * smoothstep(-0.02, 0.3, elev)) * (1 - this.rain * 0.7);
     this.sun.intensity = sunI;
     this.sun.color.copy(moonUp ? new THREE.Color(0.6, 0.7, 1.0) : new THREE.Color(1, lerp(0.62, 0.95, smoothstep(0, 0.3, elev)), lerp(0.4, 0.86, smoothstep(0, 0.3, elev))));
-    this.hemi.intensity = 0.25 + 0.75 * dayF;
+    this.hemi.intensity = (0.25 + 0.75 * dayF) * (1 - this.rain * 0.3);
     this.hemi.color.copy(hor).lerp(new THREE.Color(0.75, 0.85, 1), 0.5);
     this.hemi.groundColor.setRGB(0.25 * (0.3 + dayF), 0.3 * (0.3 + dayF), 0.18 * (0.3 + dayF));
     this.ambient.intensity = 0.12 + 0.05 * dayF;

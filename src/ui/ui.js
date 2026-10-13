@@ -47,7 +47,12 @@ export class UI {
     this.hover = null;
     this.mapCanvas = null;
     window.addEventListener('keydown', (e) => this.onKey(e));
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.lastClick = { uid: null, t: 0 };
     document.addEventListener('mousemove', (e) => {
+      this.mouseX = e.clientX;
+      this.mouseY = e.clientY;
       if (!this.tooltip.classList.contains('hidden')) {
         this.tooltip.style.left = `${Math.min(window.innerWidth - 340, e.clientX + 16)}px`;
         this.tooltip.style.top = `${Math.min(window.innerHeight - 200, e.clientY + 12)}px`;
@@ -404,6 +409,12 @@ export class UI {
     this.renderCharColumn(el.querySelector('[data-col=mid]'));
     this.renderRightColumn(el.querySelector('[data-col=right]'));
     [...this.root.querySelectorAll('.grid')].forEach((x, i) => { if (scrollTops[i]) x.scrollTop = scrollTops[i]; });
+    // keep hover-based shortcuts (1-0, T, E, O) working across re-renders
+    this.hover = null;
+    this.tooltip.classList.add('hidden');
+    const under = document.elementFromPoint(this.mouseX, this.mouseY);
+    const slot = under && under.closest && under.closest('.slot[data-uid]');
+    if (slot && slot.onmouseenter) slot.onmouseenter();
     const searchInput = this.root.querySelector(`input[data-search=${st.focusSearch || 'none'}]`);
     if (searchInput) { searchInput.focus(); searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length); }
   }
@@ -424,8 +435,15 @@ export class UI {
       const stack = () => (where === 'equip' ? Object.values(this.game.player.equipment).find((x) => x && x.uid === uid) : inventory.byUid(uid));
       s.onmouseenter = () => { this.hover = { where, uid, inventory }; this.showItemTooltip(stack()); };
       s.onmouseleave = () => { this.hover = null; this.tooltip.classList.add('hidden'); };
-      s.onclick = () => { this.inv.sel = { where, uid }; this.renderInventory(); };
-      s.ondblclick = () => this.defaultAction(where, uid, inventory);
+      // the grid re-renders on click, so detect double-clicks manually
+      s.onclick = () => {
+        const now = performance.now();
+        const dbl = this.lastClick.uid === uid && now - this.lastClick.t < 380;
+        this.lastClick = { uid: dbl ? null : uid, t: now };
+        if (dbl) { this.defaultAction(where, uid, inventory); return; }
+        this.inv.sel = { where, uid };
+        this.renderInventory();
+      };
       s.ondragstart = (e) => { e.dataTransfer.setData('text/plain', JSON.stringify({ where, uid })); this.dragging = { where, uid, inventory }; };
       s.ondragend = () => { this.dragging = null; };
     });

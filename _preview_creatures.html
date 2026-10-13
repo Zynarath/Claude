@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#000}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script></head><body>
+<script type="module">
+import * as THREE from 'three';
+import { CREATURE_LIST } from './src/data/creatures.js';
+import { buildCreatureModel, animateRig } from './src/game/creatureModels.js';
+const params=new URLSearchParams(location.search);
+const ids=(params.get('ids')||'').split(',').filter(Boolean);
+const list = ids.length ? CREATURE_LIST.filter(d=>ids.includes(d.id)) : CREATURE_LIST;
+const W=1600,H=900; const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(W,H); document.body.appendChild(renderer.domElement);
+renderer.setScissorTest(true);
+const cols=+(params.get('cols')||4), rows=Math.ceil(list.length/cols);
+const cw=W/cols, ch=H/rows;
+list.forEach((def,i)=>{
+  const scene=new THREE.Scene(); scene.background=new THREE.Color('#8ab4d8');
+  scene.add(new THREE.HemisphereLight(0xffffff,0x445533,1.3)); const d=new THREE.DirectionalLight(0xffffff,1.6); d.position.set(5,10,7); scene.add(d);
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(400,400), new THREE.MeshLambertMaterial({color:'#6a8a4a'})); g.rotation.x=-Math.PI/2; scene.add(g);
+  const rig=buildCreatureModel(def);
+  rig.root.rotation.y = +(params.get('rot')||1.15);
+  if(def.habitat==='water') rig.root.position.y = 1.5*(def.model.scale||1);
+  animateRig(rig, def, {time:0.4, speed: +(params.get('speed')||0), attack: +(params.get('attack')||0), flying: params.get('fly')==='1' && def.habitat==='air', ko: params.get('ko')==='1'}, 0.016);
+  if (params.get('ko')==='1') { rig.root.rotation.z = Math.PI/2*0.92; rig.root.position.y += def.radius*0.35; }
+  scene.add(rig.root);
+  rig.root.updateMatrixWorld(true);
+  const box=new THREE.Box3().setFromObject(rig.root); const size=box.getSize(new THREE.Vector3()); const c=box.getCenter(new THREE.Vector3());
+  const r=Math.max(size.x,size.y,size.z)*0.75+0.3;
+  const cam=new THREE.PerspectiveCamera(40,cw/ch,0.05,2000);
+  cam.position.set(c.x+r*0.6, c.y+r*0.5, c.z+r*2.2); cam.lookAt(c);
+  const col=i%cols,row=Math.floor(i/cols);
+  const x=col*cw,y=H-(row+1)*ch;
+  renderer.setViewport(x,y,cw,ch); renderer.setScissor(x,y,cw,ch);
+  renderer.render(scene,cam);
+});
+window.__info={n:list.length}; window.__done=true;
+</script></body></html>

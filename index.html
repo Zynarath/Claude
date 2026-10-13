@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARK: Survival Evolved (2015) — Fan Recreation</title>
+  <meta name="description" content="A browser recreation of ARK: Survival Evolved as it played at its June 2015 Early Access launch.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="view"></canvas>
+
+    <!-- full-screen overlays -->
+    <div id="fx-damage" class="fx"></div>
+    <div id="fx-water" class="fx"></div>
+    <div id="fx-blind" class="fx"></div>
+    <div id="fx-ko" class="fx"><div>UNCONSCIOUS</div></div>
+    <div id="fx-fade" class="fx"></div>
+
+    <div id="hud" class="hidden">
+      <div id="crosshair"></div>
+      <div id="prompt"></div>
+      <div id="target-info"></div>
+      <div id="tame-info"></div>
+      <div id="notifications"></div>
+      <div id="gains"></div>
+      <div id="levelup-hint" class="hidden">LEVEL UP AVAILABLE — Press <b>I</b></div>
+      <div id="xpbar"><div id="xpfill"></div><span id="xptext"></span></div>
+      <div id="clock"></div>
+      <div id="compass" class="hidden"></div>
+      <div id="gps" class="hidden"></div>
+      <div id="status-effects"></div>
+      <div id="stats"></div>
+      <div id="hotbar"></div>
+      <div id="ride-info" class="hidden"></div>
+      <div id="place-info" class="hidden"></div>
+      <div id="craft-progress" class="hidden"></div>
+    </div>
+
+    <div id="screens"></div>
+    <div id="loading" class="screen">
+      <div class="loading-box">
+        <div class="logo">ARK</div>
+        <div class="logo-sub">SURVIVAL EVOLVED</div>
+        <div id="loading-text">Generating The Island…</div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

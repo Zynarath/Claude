@@ -1,0 +1,11 @@
+{
+  "name": "ark-2015-recreation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fan recreation of ARK: Survival Evolved as it played at its June 2015 Early Access launch, running in the browser with three.js.",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tools/smoke-test.mjs"
+  },
+  "license": "MIT"
+}

@@ -15,6 +15,8 @@ const SADDLE_GEO = { seat: new THREE.BoxGeometry(0.7, 0.18, 0.9), back: new THRE
 const SADDLE_MAT = new THREE.MeshLambertMaterial({ color: '#5a3a22', flatShading: true });
 const VISIBLE_RADIUS = 420;
 const WILD_POINT_STATS = ['health', 'stamina', 'weight', 'melee', 'food', 'oxygen'];
+const LIE_ANGLE = (Math.PI / 2) * 0.92; // roll applied to unconscious/dead creatures
+const LIE_SIN = Math.sin(LIE_ANGLE), LIE_COS = Math.cos(LIE_ANGLE);
 
 // What tamed creatures gather when they attack resource nodes.
 const TAME_HARVEST = {
@@ -118,9 +120,14 @@ export class Creature {
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const lying = this.ko || this.dead;
     for (const h of spheres) {
+      let lx = 0, ly = h.y * s;
       const lz = h.z * s;
-      const ly = lying ? Math.max(0.3, h.r * s * 0.6) : h.y * s;
-      out.push({ x: this.pos.x + sin * lz, y: this.pos.y + ly, z: this.pos.z + cos * lz, r: h.r * s });
+      if (lying) {
+        // match the render: the model is rolled onto its side about its forward axis
+        lx = -ly * LIE_SIN;
+        ly = ly * LIE_COS + this.def.radius * 0.35;
+      }
+      out.push({ x: this.pos.x + lx * cos + lz * sin, y: this.pos.y + ly, z: this.pos.z - lx * sin + lz * cos, r: h.r * s });
     }
     return out;
   }
@@ -938,7 +945,7 @@ export class CreatureManager {
     rig.root.rotation.set(0, c.yaw, 0);
     const lying = c.ko || c.dead;
     if (lying) {
-      rig.root.rotation.z = Math.PI / 2 * 0.92;
+      rig.root.rotation.z = LIE_ANGLE;
       rig.root.position.y += c.def.radius * 0.35;
     }
     if (c.flying && c.def.habitat === 'air') {

@@ -1615,6 +1615,8 @@ class Game {
         default: break;
       }
     } else if (this.canDrink()) prompt = `${key('E')} Drink`;
+    // taming progress is visible whenever you look at the unconscious creature
+    if (!tame && far && far.creature.ko && far.creature.taming) tame = this.hud.tameHTML(far.creature, this.creatures.tameEstimate(far.creature));
     const held = p.activeDef();
     if (!prompt && held && held.ammo && !p.riding) {
       const ammo = this.currentAmmo(held);

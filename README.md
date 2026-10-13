@@ -109,22 +109,33 @@ vendor/three/                 three.js r160 (MIT)
 
 ## Testing
 
-`npm test` runs `tools/smoke-test.mjs` against a running server (`npm start` first). It needs Playwright with Chromium available (`npm i -D playwright` if you don't have it). The test boots the game, then checks:
+`npm test` runs `tools/smoke-test.mjs` against a running server (`npm start` first). It needs Playwright with Chromium available (`npm i -D playwright` if you don't have it). The test boots the game and asserts the full gameplay loop:
 
 - starting a survivor
 - punching trees, picking up stones and harvesting bushes
-- crafting the Stone Pick
-- mining flint
+- crafting and using a Stone Pick
 - levelling up and learning engrams
-- building and lighting a campfire that cooks meat and makes charcoal
-- building a snapped thatch hut with a working door
+- a campfire that cooks meat and makes charcoal
+- a snapped thatch hut with a working door
+- Mortar and Pestle, Refining Forge and Smithy crafting chains
+- spoilage and the Preserving Bin
+- temperature (cold mountains, warm fires, a hot volcano)
 - knocking out and taming a Dodo
 - taming, saddling and riding a Parasaur
-- being killed by a Raptor, respawning, and saving and reloading
+- flying a Pteranodon and swimming a Megalodon
+- tranquilizer arrows
+- throwing and recovering a spear
+- follow/stay whistles
+- fleeing herbivores and Dilophosaur spit
+- supply drop level gates
+- sleeping bags and demolishing
+- death by Raptor, respawning, and saving and reloading
 - opening every screen
-- simulating two minutes of the living world
+- two minutes of simulated world
 
-It fails on any page error or failed check. Pass a directory as the second argument to also save screenshots.
+It fails on any page error or failed check. Pass a directory as the second argument (`node tools/smoke-test.mjs http://localhost:8080/ shots/`) to also save screenshots of each interface.
+
+`tools/creature-gallery.html` renders every creature model side by side; open it through the server.
 
 ## License
 

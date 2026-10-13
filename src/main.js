@@ -684,6 +684,8 @@ class Game {
       const take = Math.min(left, (per[item] || 0.3) * this.settings.harvestAmount * rand(0.7, 1.3));
       drops[item] -= take;
       c.harvestAcc[item] = (c.harvestAcc[item] || 0) + take;
+      // once the corpse is spent on this item, round the remainder so nothing is lost
+      if (drops[item] < 0.5) { c.harvestAcc[item] = Math.round(c.harvestAcc[item] + drops[item]); drops[item] = 0; }
       const whole = Math.floor(c.harvestAcc[item]);
       if (whole > 0) {
         c.harvestAcc[item] -= whole;

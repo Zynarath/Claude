@@ -430,6 +430,27 @@ await step('ride a Megalodon underwater', () => {
   return res;
 }, (r) => r.riding && r.moved > 10 && r.underwater);
 
+await step('kill a Dodo and harvest its corpse for meat and hide', () => {
+  const g = window.__game, p = g.player;
+  if (g.player.dead) g.respawn({ zone: { name: 'S', angle: 90 } });
+  if (g.ui.current) g.ui.close();
+  const sp = g.spawnPointForZone({ angle: 90 }, false); // back on the beach
+  p.pos.set(sp.x, sp.y, sp.z);
+  const def = g.creatures.list.find((c) => c.def.id === 'dodo').def;
+  const d = g.creatures.spawnAt(def, p.pos.x + 2, p.pos.z, 3);
+  g.creatures.ensureModel(d);
+  g.creatures.damage(d, 1000, { source: g.playerTarget() });
+  const meat0 = p.inventory.count('raw_meat'), hide0 = p.inventory.count('hide');
+  g.selectSlot(-1);
+  for (let i = 0; i < 8; i++) {
+    const hs = d.hitSpheres()[0], eye = p.eyePos();
+    p.yaw = Math.atan2(-(hs.x - eye.x), -(hs.z - eye.z));
+    p.pitch = Math.atan2(hs.y - eye.y, Math.hypot(hs.x - eye.x, hs.z - eye.z));
+    g.resolveMelee('fists');
+  }
+  return { dead: d.dead, meat: p.inventory.count('raw_meat') - meat0, hide: p.inventory.count('hide') - hide0 };
+}, (r) => r.dead && r.meat >= 1 && r.hide >= 1);
+
 await step('simulate 2 minutes of the living world', () => {
   const g = window.__game;
   for (let i = 0; i < 2400; i++) g.update(0.05);

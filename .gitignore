@@ -1,0 +1,8 @@
+build/
+build-*/
+out/
+.vs/
+.vscode/
+*.exe
+tower_save.txt
+tower_save.txt.tmp

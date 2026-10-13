@@ -9,6 +9,10 @@ import { clamp, lerp, rand, randInt, wrapAngle, approachAngle, weightedPick, uid
 import { raySphere } from '../world/resources.js';
 
 const ACTIVE_RADIUS = 520;
+const SPIT_GEO = new THREE.SphereGeometry(0.12, 6, 4);
+const SPIT_MAT = new THREE.MeshBasicMaterial({ color: '#8adf3a' });
+const SADDLE_GEO = { seat: new THREE.BoxGeometry(0.7, 0.18, 0.9), back: new THREE.BoxGeometry(0.6, 0.35, 0.12) };
+const SADDLE_MAT = new THREE.MeshLambertMaterial({ color: '#5a3a22', flatShading: true });
 const VISIBLE_RADIUS = 420;
 const WILD_POINT_STATS = ['health', 'stamina', 'weight', 'melee', 'food', 'oxygen'];
 
@@ -241,7 +245,7 @@ export class CreatureManager {
   dropModel(c) {
     if (!c.rig) return;
     this.scene.remove(c.rig.root);
-    c.rig.root.traverse((o) => { if (o.material && o.material.dispose) o.material.dispose(); });
+    c.rig.root.traverse((o) => { if (o.material && o.material !== SADDLE_MAT && o.material.dispose) o.material.dispose(); });
     c.rig = null;
   }
 
@@ -249,11 +253,10 @@ export class CreatureManager {
     if (!c.rig || c.rig.saddleMesh) return;
     const s = c.rig.scale;
     const g = new THREE.Group();
-    const leather = new THREE.MeshLambertMaterial({ color: '#5a3a22', flatShading: true });
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.9), leather);
+    const seat = new THREE.Mesh(SADDLE_GEO.seat, SADDLE_MAT);
     seat.castShadow = true;
     g.add(seat);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.35, 0.12), leather);
+    const back = new THREE.Mesh(SADDLE_GEO.back, SADDLE_MAT);
     back.position.set(0, 0.15, -0.4);
     g.add(back);
     g.position.set(0, (c.def.seatHeight - 0.15) / s, 0);
@@ -834,7 +837,7 @@ export class CreatureManager {
     const head = c.headPos(new THREE.Vector3());
     const target = new THREE.Vector3(tpos.x, tpos.y + 1.4, tpos.z);
     const dir = target.sub(head).normalize();
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), new THREE.MeshBasicMaterial({ color: '#8adf3a' }));
+    const mesh = new THREE.Mesh(SPIT_GEO, SPIT_MAT);
     mesh.position.copy(head);
     this.scene.add(mesh);
     this.projectiles.push({ mesh, vel: dir.multiplyScalar(20), life: 1.5, from: c });
@@ -855,7 +858,6 @@ export class CreatureManager {
       }
       if (hit || p.life <= 0 || p.mesh.position.y < this.terrain.getHeight(p.mesh.position.x, p.mesh.position.z)) {
         this.scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
         this.projectiles.splice(i, 1);
       }
     }

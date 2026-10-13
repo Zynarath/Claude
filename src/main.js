@@ -24,6 +24,20 @@ import { UI, SPAWN_ZONES } from './ui/ui.js';
 const DEFAULT_SETTINGS = { difficulty: 0.2, dayCycle: 1, tamingSpeed: 1, harvestAmount: 1, xpMult: 1, resourceRespawn: 1, playerDamage: 1, dinoDamage: 1 };
 const DEFAULT_OPTIONS = { sensitivity: 1, fov: 80, viewDistance: 1, volume: 0.6, resolution: 1, shadows: true, invertY: false, showFps: false };
 
+// Shared geometries/materials for short-lived objects (avoids leaking GPU buffers)
+const SHARED = {
+  arrow: new THREE.CylinderGeometry(0.012, 0.012, 0.8, 4).rotateX(Math.PI / 2),
+  spear: new THREE.CylinderGeometry(0.025, 0.025, 1.9, 5).rotateX(Math.PI / 2),
+  stone: new THREE.SphereGeometry(0.05, 5, 4),
+  bullet: new THREE.SphereGeometry(0.03, 4, 3),
+  bag: new THREE.DodecahedronGeometry(0.22, 0),
+  arrowMat: new THREE.MeshLambertMaterial({ color: '#8a6a3a' }),
+  tranqMat: new THREE.MeshLambertMaterial({ color: '#9a7ad8' }),
+  stoneMat: new THREE.MeshLambertMaterial({ color: '#888' }),
+  bulletMat: new THREE.MeshBasicMaterial({ color: '#ffe0a0' }),
+  bagMat: new THREE.MeshLambertMaterial({ color: '#c8a050' }),
+};
+
 const MELEE = {
   fists: { range: 2.7, cd: 0.55, dmg: 8, torpor: 10, family: 'fists' },
   pick: { range: 3.1, cd: 0.75, family: 'pick' },
@@ -197,8 +211,22 @@ class Game {
     this.sky.day = 1;
     this.placeAtSpawn(choice);
     this.startPlaying();
-    this.hud.notify('Welcome to the ARK. Punch trees, pick up stones and harvest bushes to survive.', 'neutral', 7);
+    this.showTips();
     this.saveGame();
+  }
+
+  showTips() {
+    const tips = [
+      'Welcome to the ARK. You have nothing but the implant in your arm.',
+      'Left-click to punch trees for Thatch and Wood. Press E to pick up small stones and harvest bushes for Fiber and berries.',
+      'Press I to open your inventory and craft a Stone Pick. Hold H to see your exact stats and the time.',
+      'Levelling up gives Engram Points — spend them in the Engrams tab to unlock new recipes.',
+      'Drink by pressing E while looking at water. Beware of Dilophosaurs and Raptors.',
+    ];
+    const run = this.tipRun = (this.tipRun || 0) + 1;
+    tips.forEach((t, i) => setTimeout(() => {
+      if (this.tipRun === run && this.state === 'playing') this.hud.notify(t, 'neutral', 6.5);
+    }, 800 + i * 7500));
   }
 
   continueGame() {
@@ -703,15 +731,15 @@ class Game {
     let speed = 70, damage = (ad.damage || def.damage), torpor = ad.torporDamage || 0, gravity = 9.8, mesh;
     if (def.equip === 'bow') {
       speed = 25 + 45 * power; damage *= 0.35 + 0.65 * power; torpor *= 0.35 + 0.65 * power;
-      mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.8, 4).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: ammo === 'tranq_arrow' ? '#9a7ad8' : '#8a6a3a' }));
+      mesh = new THREE.Mesh(SHARED.arrow, ammo === 'tranq_arrow' ? SHARED.tranqMat : SHARED.arrowMat);
       this.audio.play('bow');
     } else if (def.equip === 'slingshot') {
       speed = 20 + 30 * power; damage = def.damage * (0.4 + 0.6 * power); torpor = def.torporDamage * (0.4 + 0.6 * power);
-      mesh = new THREE.Mesh(new THREE.SphereGeometry(0.05, 5, 4), new THREE.MeshLambertMaterial({ color: '#888' }));
+      mesh = new THREE.Mesh(SHARED.stone, SHARED.stoneMat);
       this.audio.play('bow');
     } else {
       speed = def.equip === 'rifle' ? 260 : 160; gravity = 2;
-      mesh = new THREE.Mesh(new THREE.SphereGeometry(0.03, 4, 3), new THREE.MeshBasicMaterial({ color: '#ffe0a0' }));
+      mesh = new THREE.Mesh(SHARED.bullet, SHARED.bulletMat);
       this.reload = def.equip === 'rifle' ? 2.6 : 1.6;
       this.viewModel.recoil = 1;
       this.audio.play('gun');
@@ -734,7 +762,7 @@ class Game {
     p.inventory.removeStack(stack);
     p.cleanHotbar();
     this.selectSlot(-1, true);
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.9, 5).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#8a6a3a' }));
+    const mesh = new THREE.Mesh(SHARED.spear, SHARED.arrowMat);
     mesh.position.copy(eye).addScaledVector(dir, 0.8);
     this.scene.add(mesh);
     this.projectiles.push({ mesh, vel: dir.multiplyScalar(28), gravity: 9.8, life: 6, damage: 40 * p.meleeMult * this.settings.playerDamage, torpor: 0, stack, owner: 'player' });
@@ -1084,7 +1112,7 @@ class Game {
   spawnDropped(x, y, z, stacks) {
     const inv = new Inventory(50);
     for (const s of stacks) inv.addStack(s);
-    const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0), new THREE.MeshLambertMaterial({ color: '#c8a050' }));
+    const mesh = new THREE.Mesh(SHARED.bag, SHARED.bagMat);
     mesh.position.set(x, y + 0.2, z);
     mesh.castShadow = true;
     this.scene.add(mesh);

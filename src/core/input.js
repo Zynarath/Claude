@@ -64,7 +64,7 @@ export class Input {
     try {
       const p = this.canvas.requestPointerLock();
       if (p && p.catch) p.catch(() => {});
-    } catch (_) { /* ignored: browsers may refuse without a user gesture */ }
+    } catch { /* ignored: browsers may refuse without a user gesture */ }
   }
 
   unlock() {

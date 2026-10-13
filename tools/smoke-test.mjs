@@ -11,6 +11,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}\n${e.stack}`));
 const shot = async (name) => { if (shots) await page.screenshot({ path: `${shots}/${name}.png` }); };
+// Each step runs inside the page; `check` validates the returned summary.
 const step = async (name, fn, check) => {
   try {
     const r = await page.evaluate(fn);
@@ -36,12 +37,6 @@ await step('start new survivor', () => {
 await frames(30);
 await shot('02-spawn');
 
-
-// Advance the simulation deterministically from inside the page (works even when rAF is throttled).
-const sim = (seconds, dt = 0.05) => page.evaluate(([seconds, dt]) => {
-  const g = window.__game;
-  for (let t = 0; t < seconds; t += dt) g.update(dt);
-}, [seconds, dt]);
 
 await step('punch a tree for thatch & wood', () => {
   const g = window.__game, p = g.player;
@@ -138,11 +133,11 @@ await step('build a thatch hut: foundation, snapped walls, doorframe, door, roof
   results.foundation = place('thatch_foundation', { x: 0, y: 0, z: 0 }, -0.5);
   const f = B.list.find((s) => s.type === 'thatch_foundation');
   // aim at each foundation edge from above
+  // look down at a target point from just above the foundation's centre
   const aimAt = (id, x, y, z) => {
-    const eye = { x: f.x + 0.01, y: f.y + 4, z: f.z + 0.01 };
-    const d = { x: x - eye.x, y: y - eye.y, z: z - eye.z };
-    const L = Math.hypot(d.x, d.y, d.z);
-    const pl = B.computePlacement(id, new eye.constructor ? Object.assign(Object.create(Object.getPrototypeOf(p.pos)), eye) : eye, Object.assign(Object.create(Object.getPrototypeOf(p.pos)), { x: d.x / L, y: d.y / L, z: d.z / L }));
+    const eye = p.pos.clone().set(f.x + 0.01, f.y + 4, f.z + 0.01);
+    const dir = p.pos.clone().set(x - eye.x, y - eye.y, z - eye.z).normalize();
+    const pl = B.computePlacement(id, eye, dir);
     g.placeStructure(id, pl);
     return pl.ok;
   };
@@ -165,7 +160,8 @@ await step('build a thatch hut: foundation, snapped walls, doorframe, door, roof
 
 await step('spawn and knock out a Dodo with fists, then tame it with Mejoberries', () => {
   const g = window.__game, p = g.player;
-  const dodo = g.creatures.spawnAt(window.__game.creatures.constructor && g.creatures.list[0] ? (globalThis.__CR || null) || g.creatures.list.find((c) => c.def.id === 'dodo').def : null, p.pos.x + 2, p.pos.z, 1);
+  const dodoDef = g.creatures.list.find((c) => c.def.id === 'dodo').def;
+  const dodo = g.creatures.spawnAt(dodoDef, p.pos.x + 2, p.pos.z, 1);
   g.creatures.ensureModel(dodo);
   let hits = 0;
   while (!dodo.ko && !dodo.dead && hits < 20) { g.creatures.damage(dodo, 8 * p.meleeMult, { torpor: 10 * p.meleeMult, source: g.playerTarget() }); hits++; }
@@ -346,6 +342,93 @@ await step('sleeping bag respawn is single-use; demolish refunds materials', () 
   g.demolish(wall);
   return { atBag, bagGone, refund: p.inventory.count('wood') - woodBefore };
 }, (r) => r.atBag && r.bagGone && r.refund === 2);
+
+await step('bow + tranquilizer arrows knock out a Trike over time', () => {
+  const g = window.__game, p = g.player;
+  if (g.ui.current) g.ui.close();
+  const def = g.creatures.list.find((c) => c.def.id === 'trike')?.def;
+  p.pos.set(p.pos.x, g.terrain.getHeight(p.pos.x, p.pos.z), p.pos.z);
+  const t = g.creatures.spawnAt(def, p.pos.x, p.pos.z - 12, 5);
+  t.state = 'idle'; t.stateTimer = 999; t.goal = null; t.desiredSpeed = 0;
+  g.creatures.ensureModel(t);
+  p.inventory.add('bow', 1); p.inventory.add('tranq_arrow', 30);
+  const bow = p.inventory.find('bow');
+  p.autoHotbar(bow);
+  g.selectSlot(p.hotbar.findIndex((h) => h && h.uid === bow.uid));
+  let shots = 0;
+  for (let i = 0; i < 30 && !t.ko && !t.dead; i++) {
+    const eye = p.eyePos(), hs = t.hitSpheres()[0];
+    p.yaw = Math.atan2(-(hs.x - eye.x), -(hs.z - eye.z));
+    p.pitch = Math.atan2(hs.y - eye.y, Math.hypot(hs.x - eye.x, hs.z - eye.z));
+    g.fireRanged(ITEMS_BOW(), 1); shots++;
+    for (let k = 0; k < 40; k++) { g.updateProjectiles(0.05); g.creatures.think(t, 0.05, 12, false); }
+    if (t.state === 'chase') { t.state = 'idle'; t.target = null; }
+  }
+  function ITEMS_BOW() { return { id: 'bow', equip: 'bow', damage: 20, ammo: ['stone_arrow', 'tranq_arrow'], name: 'Bow' }; }
+  return { ko: t.ko, dead: t.dead, shots, torpor: Math.round(t.torpor), hpLeft: Math.round(t.hp / t.hpMax * 100) };
+}, (r) => r.ko && !r.dead && r.shots < 30);
+
+await step('throw a spear and pick it back up', () => {
+  const g = window.__game, p = g.player;
+  p.inventory.add('spear', 1);
+  const sp = p.inventory.find('spear');
+  p.autoHotbar(sp);
+  g.selectSlot(p.hotbar.findIndex((h) => h && h.uid === sp.uid));
+  p.pitch = 0.2;
+  g.throwSpear();
+  for (let i = 0; i < 120 && g.projectiles.length; i++) g.updateProjectiles(0.05);
+  const bag = g.dropped.find((d) => d.inventory.stacks.some((s) => s.id === 'spear'));
+  if (bag) g.pickupDropped(bag);
+  return { onGround: !!bag, back: p.inventory.count('spear') };
+}, (r) => r.onGround && r.back === 1);
+
+await step('tamed creature follows its owner', () => {
+  const g = window.__game, p = g.player;
+  const def = g.creatures.list.find((c) => c.def.id === 'raptor')?.def;
+  const c = g.creatures.spawnAt(def, p.pos.x + 30, p.pos.z, 10, { tamed: true });
+  c.tamed = true; c.follow = true; c.state = 'idle';
+  const d0 = Math.hypot(c.pos.x - p.pos.x, c.pos.z - p.pos.z);
+  for (let i = 0; i < 160; i++) { g.creatures.think(c, 0.05, 30, false); g.creatures.physics(c, 0.05); }
+  const d1 = Math.hypot(c.pos.x - p.pos.x, c.pos.z - p.pos.z);
+  g.creatures.whistle('stay', p.pos);
+  return { d0: Math.round(d0), d1: Math.round(d1), followAfterStay: c.follow };
+}, (r) => r.d1 < 12 && r.followAfterStay === false);
+
+await step('hit Parasaur flees, Dilophosaur spit blinds', () => {
+  const g = window.__game, p = g.player;
+  const pd = g.creatures.list.find((c) => c.def.id === 'parasaur').def;
+  const para = g.creatures.spawnAt(pd, p.pos.x + 3, p.pos.z, 5);
+  g.creatures.damage(para, 5, { source: g.playerTarget() });
+  const fleeing = para.state === 'flee';
+  const dd = g.creatures.list.find((c) => c.def.id === 'dilophosaur')?.def;
+  const dilo = g.creatures.spawnAt(dd, p.pos.x + 8, p.pos.z, 5);
+  g.creatures.ensureModel(dilo);
+  p.blind = 0;
+  g.creatures.spit(dilo, p.pos);
+  for (let i = 0; i < 40; i++) g.creatures.updateProjectiles(0.05);
+  return { fleeing, blind: +p.blind.toFixed(1) };
+}, (r) => r.fleeing && r.blind > 0);
+
+await step('ride a Megalodon underwater', () => {
+  const g = window.__game, p = g.player;
+  const def = g.creatures.list.find((c) => c.def.id === 'megalodon')?.def;
+  // find deep water near the south coast
+  let spot = null;
+  for (let z = 1700; z < 2000 && !spot; z += 10) if (g.terrain.getHeight(0, z) < -20) spot = { x: 0, z };
+  const m = g.creatures.spawnAt(def, spot.x, spot.z, 10, { tamed: true });
+  m.tamed = true; m.state = 'idle';
+  g.creatures.ensureModel(m);
+  p.inventory.add('megalodon_saddle', 1);
+  g.equipSaddle(m, p.inventory.find('megalodon_saddle').uid);
+  g.mount(m);
+  const start = m.pos.clone();
+  g.input.keys.add('KeyW'); p.yaw = 0; p.pitch = -0.3;
+  for (let i = 0; i < 60; i++) g.update(0.05);
+  g.input.keys.delete('KeyW');
+  const res = { riding: p.riding === m, moved: +m.pos.distanceTo(start).toFixed(1), underwater: m.pos.y < g.terrain.waterLevelAt(m.pos.x, m.pos.z) };
+  g.dismount();
+  return res;
+}, (r) => r.riding && r.moved > 10 && r.underwater);
 
 await step('simulate 2 minutes of the living world', () => {
   const g = window.__game;

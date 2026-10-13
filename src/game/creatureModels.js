@@ -302,7 +302,7 @@ const BUILDERS = {
   },
 
   mammoth(def, m, rig) {
-    const { a, b, dark, light } = rig.mats;
+    const { a, dark, light } = rig.mats;
     const torso = BUILDERS.quadruped(def, m, rig, { hipY: 2.0, bodyW: 1.4, bodyH: 1.5, bodyL: 2.0, legH: 2.0, legT: 0.5, noFeet: true, belly: false });
     part(torso, GEO.sphere, a, 1.1, 0.9, 1.2, 0, 0.7, 0.7); // shoulder hump
     const neck = pivot(torso, 0, 0.6, 1.8);
@@ -540,7 +540,7 @@ const BUILDERS = {
   },
 
   spider(def, m, rig) {
-    const { a, b, dark } = rig.mats;
+    const { a, b } = rig.mats;
     const torso = pivot(rig.body, 0, 0.6, 0);
     part(torso, GEO.sphere, a, 0.35, 0.28, 0.38, 0, 0, 0.25);
     part(torso, GEO.sphere, a, 0.55, 0.45, 0.65, 0, 0.15, -0.6);

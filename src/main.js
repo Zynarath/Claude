@@ -8,7 +8,7 @@ import { Resources, YIELDS, NODE_KINDS } from './world/resources.js';
 import { Landmarks } from './world/landmarks.js';
 import { Input } from './core/input.js';
 import { Audio } from './core/audio.js';
-import { clamp, lerp, rand, smoothstep, wrapAngle, approachAngle } from './core/util.js';
+import { clamp, lerp, rand, smoothstep, approachAngle } from './core/util.js';
 import { Player } from './game/player.js';
 import { CreatureManager } from './game/creatures.js';
 import { Building } from './game/building.js';
@@ -17,7 +17,7 @@ import { SaveSystem } from './game/save.js';
 import { Inventory } from './game/inventory.js';
 import { ITEMS } from './data/items.js';
 import { ENGRAM_BY_ID, MAX_LEVEL } from './data/engrams.js';
-import { CREATURES, MAX_WILD_LEVEL } from './data/creatures.js';
+import { MAX_WILD_LEVEL } from './data/creatures.js';
 import { HUD } from './ui/hud.js';
 import { UI, SPAWN_ZONES } from './ui/ui.js';
 

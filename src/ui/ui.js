@@ -6,7 +6,6 @@ import { STAT_DEFS, LEVELABLE } from '../game/player.js';
 import { TAMED_LEVEL_STATS } from '../game/creatures.js';
 import { iconURL } from './icons.js';
 import { toLatLon, WORLD_SIZE, HALF } from '../world/terrain.js';
-import { OBELISKS } from '../world/landmarks.js';
 import { formatTime } from '../core/util.js';
 
 const h = (html) => {
@@ -399,7 +398,7 @@ export class UI {
   }
 
   renderInventory() {
-    const g = this.game, p = g.player, st = this.inv;
+    const st = this.inv;
     st.versions = this.invVersions();
     const scrollTops = [...this.root.querySelectorAll('.grid')].map((x) => x.scrollTop);
     this.root.innerHTML = '';
@@ -624,7 +623,7 @@ export class UI {
 
   renderCharColumn(col) {
     const g = this.game, p = g.player;
-    const cur = xpForLevel(p.level), next = xpForLevel(Math.min(MAX_LEVEL, p.level + 1));
+    const next = xpForLevel(Math.min(MAX_LEVEL, p.level + 1));
     const slots = ['head', 'chest', 'hands', 'legs', 'feet'];
     const labels = { head: 'Head', chest: 'Chest', hands: 'Hands', legs: 'Legs', feet: 'Feet' };
     const vals = {

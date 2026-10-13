@@ -13,7 +13,7 @@ export class Audio {
     if (!AC) return false;
     try {
       this.ctx = new AC();
-    } catch (_) {
+    } catch {
       return false;
     }
     this.master = this.ctx.createGain();

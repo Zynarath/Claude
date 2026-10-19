@@ -7,7 +7,7 @@ const db = require('../db');
 const Instance = require('./instance');
 const backups = require('./backups');
 const scheduler = require('./scheduler');
-const { games, templates } = require('../games');
+const { games, templates, CONFIG_KEY } = require('../games');
 const procstats = require('../util/procstats');
 const { HttpError, randomId, isTcpPortFree, isUdpPortFree } = require('../util/misc');
 const cf = require('../services/curseforge');
@@ -103,9 +103,13 @@ class Manager extends EventEmitter {
     return start;
   }
 
-  async suggestPorts(game) {
+  async suggestPorts(game, codTitle) {
     const used = this.usedPorts();
     if (game === 'minecraft') return { port: await this.freePort(25565, 1, 'tcp', used) };
+    if (game === 'cod') {
+      const t = games.cod.TITLES[codTitle] || games.cod.TITLES.iw4x;
+      return { port: await this.freePort(t.port, 1, 'udp', used) };
+    }
     const port = await this.freePort(7777, 2, 'udp', used);
     used.add(port);
     return {
@@ -128,6 +132,11 @@ class Manager extends EventEmitter {
     if (!tpl) throw new HttpError(400, 'Pick a game');
     const name = String(input.name || '').trim();
     if (!name || name.length > 48) throw new HttpError(400, 'Give the server a name (max 48 characters)');
+    if (tpl.game === 'cod') {
+      const c = input.cod || {};
+      if (!String(c.gameDir || '').trim()) throw new HttpError(400, 'Enter the folder where the game is installed');
+      if (games.cod.TITLES[tpl.codTitle].pluto && !String(c.plutoKey || '').trim()) throw new HttpError(400, 'Enter your Plutonium server key');
+    }
     if (tpl.game === 'minecraft' && !input.eulaAccepted) throw new HttpError(400, 'You must accept the Minecraft EULA');
     if (tpl.game === 'minecraft' && tpl.source === 'curseforge' && !(input.mc && input.mc.modId && input.mc.fileId)) {
       throw new HttpError(400, 'Pick a modpack and version');
@@ -153,9 +162,9 @@ class Manager extends EventEmitter {
       schedules: [],
       access: {},
     };
-    const gameInput = { ...input, [tpl.game === 'minecraft' ? 'mc' : 'ark']: { ...(input.mc || input.ark || {}), source: tpl.source, edition: tpl.edition } };
-    if (tpl.game === 'minecraft') server.mc = game.defaults(gameInput);
-    else server.ark = game.defaults(gameInput);
+    const key = CONFIG_KEY[tpl.game];
+    const gameInput = { ...input, [key]: { ...(input[key] || {}), source: tpl.source, edition: tpl.edition, title: tpl.codTitle } };
+    server[key] = game.defaults(gameInput);
     this.checkPortConflicts(server);
     if (tpl.source === 'curseforge') {
       try {
@@ -242,7 +251,7 @@ class Manager extends EventEmitter {
           'update',
           label,
           async (log) => {
-            await inst.game.install(server, log, { isUpdate: true, validate: !!opts.validate });
+            await inst.game.install(server, log, { isUpdate: true, validate: !!opts.validate, reinstallBots: !!opts.reinstallBots });
             server.installed = true;
             server.lastInstallError = null;
             db.save();

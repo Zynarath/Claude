@@ -105,7 +105,24 @@ class Instance extends EventEmitter {
     }
   }
 
-  tailLog(file) {
+  tailLog(fileOrList) {
+    if (Array.isArray(fileOrList)) {
+      // Follow whichever candidate the game starts writing to after launch.
+      const started = this.startedAt;
+      const pick = setInterval(() => {
+        if (!this.child || this.startedAt !== started) return clearInterval(pick);
+        for (const f of fileOrList) {
+          try {
+            if (fs.statSync(f).mtimeMs >= started - 2000) {
+              clearInterval(pick);
+              return this.tailLog(f);
+            }
+          } catch {}
+        }
+      }, 2000);
+      return;
+    }
+    const file = fileOrList;
     let initial = null;
     try {
       const st = fs.statSync(file);

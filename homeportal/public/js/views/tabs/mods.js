@@ -5,6 +5,7 @@ import { pickCurseForge } from '../cfpicker.js';
 export async function render(root, ctx) {
   const { server } = ctx;
   if (server.ark) return renderArk(root, ctx);
+  if (server.cod) return renderCod(root, ctx);
   return renderMc(root, ctx);
 }
 
@@ -201,4 +202,32 @@ async function renderArk(root, { server, navigate }) {
     }
   });
   draw();
+}
+
+// ---------- Call of Duty ----------
+async function renderCod(root, { server, navigate }) {
+  const c = server.cod;
+  const engine = c.title === 'cod4x' ? 'CoD4x server files' : c.pluto ? 'Plutonium' : 'IW4x';
+  root.innerHTML = html`
+    <div class="panel">
+      <h3>Bots</h3>
+      <p>${c.botsVersion ? html`<span class="pill pill-ok">${icon('check')}Bot Warfare ${c.botsVersion}</span>` : html`<span class="pill pill-warn">not installed</span>`}
+        ${c.bots.enabled ? html` · fills to ${c.bots.fill} players` : ' · bots are off in Settings'}</p>
+      <p class="muted small">Bots come from the Bot Warfare mod (by ineedbots). ${c.pluto ? 'It is loaded from Plutonium\'s storage folder, so players don\'t need to download anything.' : 'It runs as a server-only mod (mods/mp_bots/z_svr_bots.iwd), so players don\'t need to download anything.'}</p>
+      <button class="btn" data-cod-update="bots">${icon('download')}${c.botsVersion ? 'Update' : 'Install'} Bot Warfare</button>
+    </div>
+    <div class="panel">
+      <h3>${engine}</h3>
+      <p class="muted small">${c.title === 'iw4x' ? 'IW4x is updated by its own launcher on your PC; this re-checks the game folder and rewrites the config.' : `Downloads the latest ${engine} and rewrites the config. The server is stopped first and started again if it was running.`}</p>
+      <button class="btn btn-primary" data-cod-update="engine">${icon('refresh')}Update ${engine}</button>
+    </div>`.s;
+  on(root, 'click', '[data-cod-update]', async () => {
+    try {
+      await api.post(`/api/servers/${server.id}/update`, { reinstallBots: true });
+      toast('Update started', 'ok');
+      navigate(`/server/${server.id}/overview`);
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
 }

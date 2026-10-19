@@ -145,7 +145,7 @@ function createZip(srcDir, outFile, opts = {}) {
     });
     if (opts.onProgress) archive.on('progress', (p) => opts.onProgress(p.fs.processedBytes, p.fs.totalBytes));
     archive.pipe(out);
-    archive.glob('**/*', { cwd: srcDir, dot: true, ignore: opts.ignore || [] });
+    for (const pattern of opts.globs || ['**/*']) archive.glob(pattern, { cwd: srcDir, dot: true, ignore: opts.ignore || [] });
     archive.finalize();
   });
 }

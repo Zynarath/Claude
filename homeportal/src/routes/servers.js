@@ -7,7 +7,7 @@ const auth = require('../auth');
 const manager = require('../manager/manager');
 const backups = require('../manager/backups');
 const scheduler = require('../manager/scheduler');
-const { games, templates } = require('../games');
+const { games, templates, CONFIG_KEY } = require('../games');
 const cf = require('../services/curseforge');
 const { HttpError, randomId } = require('../util/misc');
 const { parseCpuList, PRIORITIES, CORES } = require('../util/procstats');
@@ -61,6 +61,15 @@ function view(inst, user, full = false) {
     out.ark = { edition: s.ark.edition, editionLabel: games.ark.EDITIONS[s.ark.edition].label, map: s.ark.map, maxPlayers: s.ark.maxPlayers, port: s.ark.port, mods: s.ark.mods, clusterId: s.ark.clusterId, hasPassword: !!s.ark.settings.ServerPassword };
     if (perms.includes('settings') || perms.includes('admin')) out.ark.joinPassword = s.ark.settings.ServerPassword || '';
   }
+  if (s.cod) {
+    const t = games.cod.TITLES[s.cod.title];
+    out.cod = {
+      title: s.cod.title, label: t.label, short: t.short, gametype: s.cod.gametype, gametypeLabel: (t.gametypes.find((g) => g[0] === s.cod.gametype) || [])[1] || s.cod.gametype,
+      maps: s.cod.maps.length, port: s.cod.port, bots: s.cod.bots, botsVersion: s.cod.botsVersion, xpScale: s.cod.xpScale, weaponXp: t.weaponXp, weaponXpScale: s.cod.weaponXpScale,
+      pluto: !!t.pluto, hasPassword: !!s.cod.password, hasKey: !!s.cod.plutoKey,
+    };
+    if (perms.includes('settings') || perms.includes('admin')) out.cod.joinPassword = s.cod.password || '';
+  }
   if (full) {
     Object.assign(out, {
       dir: user.role === 'admin' ? s.dir : undefined,
@@ -87,7 +96,8 @@ router.get('/servers', (req, res) => {
 });
 
 router.get('/servers/suggest-ports', auth.requireAdmin, async (req, res) => {
-  res.json(await manager.suggestPorts(req.query.game === 'ark' ? 'ark' : 'minecraft'));
+  const game = ['ark', 'cod'].includes(req.query.game) ? req.query.game : 'minecraft';
+  res.json(await manager.suggestPorts(game, req.query.title));
 });
 
 router.post('/servers', auth.requireAdmin, async (req, res) => {
@@ -165,14 +175,13 @@ router.get('/servers/:id/settings', (req, res) => {
 
 router.put('/servers/:id/settings', (req, res) => {
   const inst = load(req, 'settings');
-  const before = JSON.stringify(inst.server.mc || inst.server.ark);
+  const key = CONFIG_KEY[inst.server.game];
+  const before = JSON.stringify(inst.server[key]);
   const result = inst.game.writeSettings(inst.server, (req.body && req.body.values) || {});
   try {
     manager.checkPortConflicts(inst.server);
   } catch (err) {
-    const restored = JSON.parse(before);
-    if (inst.server.mc) inst.server.mc = restored;
-    else inst.server.ark = restored;
+    inst.server[key] = JSON.parse(before);
     throw err;
   }
   db.save();
@@ -211,6 +220,7 @@ function modFile(inst, name) {
 router.get('/servers/:id/mods', (req, res) => {
   const inst = load(req, 'mods');
   if (inst.server.game === 'minecraft') return res.json({ mods: inst.game.listMods(inst.server) });
+  if (inst.server.game === 'cod') return res.json({ mods: [] });
   res.json({ mods: inst.server.ark.mods.map((id) => ({ id })) });
 });
 

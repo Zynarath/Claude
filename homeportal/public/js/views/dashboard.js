@@ -1,8 +1,9 @@
 import { api, onSocket } from '../api.js';
-import { html, $, on, icon, toast, fmtBytes, statusPill, gameArt, copyText } from '../ui.js';
+import { html, $, on, icon, toast, fmtBytes, statusPill, gameArt, artLabel, copyText } from '../ui.js';
 
 function gameLabel(s) {
   if (s.ark) return s.ark.editionLabel;
+  if (s.cod) return s.cod.label;
   if (s.mc) {
     if (s.mc.source === 'curseforge') return s.mc.curseforge?.packName || 'CurseForge modpack';
     const l = { vanilla: 'Vanilla', forge: 'Forge', neoforge: 'NeoForge', fabric: 'Fabric' }[s.mc.loader] || s.mc.loader;
@@ -13,6 +14,7 @@ function gameLabel(s) {
 
 function subLabel(s) {
   if (s.ark) return `${s.ark.map} · ${s.ark.mods.length} mod${s.ark.mods.length === 1 ? '' : 's'}`;
+  if (s.cod) return `${s.cod.gametypeLabel} · ${s.cod.maps} maps · ${s.cod.xpScale}x XP${s.cod.bots.enabled ? ' · bots' : ''}`;
   if (s.mc && s.mc.source === 'curseforge') return `${s.mc.curseforge?.versionName || ''} · MC ${s.mc.mcVersion || '?'}`;
   return `${(s.mc.memoryMb / 1024).toFixed(1)} GB RAM`;
 }
@@ -21,12 +23,12 @@ function card(s) {
   const rt = s.runtime;
   const running = ['running', 'starting', 'stopping'].includes(rt.status);
   const canControl = s.perms.includes('control');
-  const players = rt.players ? `${rt.players.online}/${rt.players.max}` : '—';
+  const players = rt.players ? `${rt.players.online}/${rt.players.max}${rt.players.bots ? ` +${rt.players.bots}🤖` : ''}` : '—';
   const job = rt.job && rt.job.status === 'running' ? rt.job : null;
   return html`
     <article class="server-card" data-id="${s.id}">
       <a class="card-art art-${gameArt(s)}" href="#/server/${s.id}">
-        ${s.mc?.curseforge?.logo ? html`<img src="${s.mc.curseforge.logo}" alt="" loading="lazy">` : html`<span class="art-mono">${s.ark ? 'ARK' : 'MC'}</span>`}
+        ${s.mc?.curseforge?.logo ? html`<img src="${s.mc.curseforge.logo}" alt="" loading="lazy">` : html`<span class="art-mono">${artLabel(s)}</span>`}
         <span class="card-status">${statusPill(rt.status)}</span>
       </a>
       <div class="card-body">

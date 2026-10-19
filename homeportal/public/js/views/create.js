@@ -2,7 +2,7 @@ import { api } from '../api.js';
 import { html, $, $$, on, icon, toast, esc } from '../ui.js';
 import { pickCurseForge } from './cfpicker.js';
 
-const ART = { ark: 'ark', 'ark-ase': 'ark', 'mc-cf': 'mc-cf', mc: 'mc' };
+const ART = { ark: 'ark', 'ark-ase': 'ark', 'mc-cf': 'mc-cf', mc: 'mc', cod: 'cod' };
 
 export async function render(root, { navigate, refreshServers }) {
   const [{ templates, curseforgeKey, platform }, { servers: existing }] = await Promise.all([api.get('/api/templates'), api.get('/api/servers')]);
@@ -22,7 +22,7 @@ export async function render(root, { navigate, refreshServers }) {
       <div class="tpl-grid">
         ${templates.map(
           (t) => html`<button class="tpl ${t.supported ? '' : 'tpl-disabled'}" data-tpl="${t.id}" ${t.supported ? '' : 'disabled'}>
-            <span class="tpl-art art-${ART[t.image]}"><span class="art-mono">${t.game === 'ark' ? 'ARK' : 'MC'}</span></span>
+            <span class="tpl-art art-${ART[t.image]}"><span class="art-mono">${t.game === 'ark' ? 'ARK' : t.game === 'cod' ? t.namePrefix.split(' ')[0] : 'MC'}</span></span>
             <span class="tpl-text"><strong>${t.title}</strong><small>${t.supported ? t.subtitle : `Not available on ${platform === 'win32' ? 'Windows' : platform} — needs Windows`}</small></span>
           </button>`
         )}
@@ -35,7 +35,7 @@ export async function render(root, { navigate, refreshServers }) {
 
   const form = async () => {
     const isMc = tpl.game === 'minecraft';
-    const ports = await api.get(`/api/servers/suggest-ports?game=${tpl.game}`).catch(() => ({}));
+    const ports = await api.get(`/api/servers/suggest-ports?game=${tpl.game}&title=${tpl.codTitle || ''}`).catch(() => ({}));
     root.innerHTML = html`
       <div class="page-head"><div>
         <button class="link-btn" id="back">← All games</button>
@@ -45,7 +45,7 @@ export async function render(root, { navigate, refreshServers }) {
           <small class="hint">Also used for this server's Discord channel.</small></label>
         ${tpl.id === 'mc-curseforge' ? cfSection(curseforgeKey) : ''}
         ${tpl.id === 'mc-custom' ? mcCustomSection() : ''}
-        ${isMc ? mcCommon(ports) : arkSection(tpl, ports)}
+        ${isMc ? mcCommon(ports) : tpl.game === 'cod' ? codSection(tpl, ports) : arkSection(tpl, ports)}
         <div class="form-actions span-2">
           <button class="btn btn-primary" type="submit">${icon('plus')}Create &amp; install</button>
           <span class="muted small">You can change all of this later in the server's Settings tab.</span>
@@ -69,7 +69,13 @@ export async function render(root, { navigate, refreshServers }) {
       e.preventDefault();
       const d = Object.fromEntries(new FormData(f));
       const body = { template: tpl.id, name: d.name, eulaAccepted: !!d.eula };
-      if (isMc) {
+      if (tpl.game === 'cod') {
+        body.cod = {
+          gameDir: d.gameDir, port: Number(d.port), password: d.password, maxClients: Number(d.maxClients), gametype: 'dom',
+          xpScale: Number(d.xpScale), weaponXpScale: Number(d.weaponXpScale || d.xpScale), plutoKey: d.plutoKey,
+          bots: { enabled: !!d.bots, fill: Number(d.botFill), skill: Number(d.botSkill), kick: true },
+        };
+      } else if (isMc) {
         body.mc = { memoryMb: Number(d.memoryMb), port: Number(d.port), maxPlayers: Number(d.maxPlayers), whitelist: !!d.whitelist, whitelistNames: d.whitelistNames };
         if (tpl.id === 'mc-curseforge') {
           if (!pack) return toast('Pick a modpack first', 'warn');
@@ -182,6 +188,27 @@ export async function render(root, { navigate, refreshServers }) {
       <label class="field span-2"><span>Your group's Minecraft usernames</span><input name="whitelistNames" placeholder="e.g. Zynarath, FriendName" autocomplete="off">
         <small class="hint">Comma-separated. Added automatically the first time the server starts; manage later in the Players tab.</small></label>
       <label class="check span-2"><input type="checkbox" name="eula" required> I agree to the <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noopener">Minecraft EULA</a></label>`;
+  }
+
+  function codSection(t, ports) {
+    return html`
+      <label class="field span-2"><span>Game folder</span><input name="gameDir" required placeholder="${t.gameHint}" autocomplete="off">
+        <small class="hint">Your own install of the game. ${t.codTitle === 'iw4x' ? 'IW4x must already be installed in it (iw4x.exe).' : t.codTitle === 'cod4x' ? 'HomePortal downloads the CoD4x server files itself.' : 'HomePortal downloads and updates Plutonium itself.'}</small></label>
+      ${t.pluto
+        ? html`<label class="field span-2"><span>Plutonium server key</span><input name="plutoKey" required autocomplete="off" placeholder="Paste key">
+            <small class="hint">Free: sign in at <a href="https://platform.plutonium.pw/serverkeys" target="_blank" rel="noopener">platform.plutonium.pw/serverkeys</a> and create a key.</small></label>`
+        : ''}
+      <div class="callout span-2">${icon('info')}<div><strong>Domination</strong> with every base map in a shuffled rotation, <strong>4x XP</strong>${t.weaponXp ? ' and <strong>4x weapon XP</strong>' : ''}, and bots filling empty slots. All of it can be changed later in Settings.</div></div>
+      <label class="field"><span>Player XP multiplier</span><input type="number" name="xpScale" value="4" min="1" max="100"></label>
+      ${t.weaponXp ? html`<label class="field"><span>Weapon XP multiplier</span><input type="number" name="weaponXpScale" value="4" min="1" max="100"></label>` : html`<div></div>`}
+      <label class="switch field-switch span-2"><input type="checkbox" name="bots" checked><span></span>Bots (Bot Warfare)
+        <small class="hint">Bots fill the match and step aside as your friends join.</small></label>
+      <label class="field"><span>Keep this many players in a match</span><input type="number" name="botFill" value="12" min="0" max="18"><small class="hint">Bots + people. 12 = 6v6.</small></label>
+      <label class="field"><span>Bot difficulty</span><select name="botSkill"><option value="0">Mixed</option><option value="1">1 – Recruit</option><option value="3">3 – Regular</option><option value="5">5 – Hardened</option><option value="7">7 – Veteran</option></select></label>
+      <label class="field"><span>Join password</span><input name="password" autocomplete="off" value="${friendlyPassword()}"><small class="hint">Your friends need it to join. Clear it to make the server public.</small></label>
+      <label class="field"><span>Max players</span><input type="number" name="maxClients" value="18" min="2" max="64"></label>
+      <details class="span-2 adv"><summary>Port</summary><div class="form-grid">
+        <label class="field"><span>Port (UDP)</span><input type="number" name="port" value="${ports.port || t.port}"></label></div></details>`;
   }
 
   function arkSection(t, ports) {

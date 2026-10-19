@@ -7,14 +7,24 @@ function field(f, value) {
   if (f.type === 'bool') {
     return html`<label class="switch field-switch"><input type="checkbox" name="${f.key}" ${value ? 'checked' : ''}><span></span>${f.label}${hint}</label>`;
   }
+  if (f.type === 'checklist') {
+    const picked = new Set(Array.isArray(value) ? value : []);
+    return html`<div class="field span-2"><span>${f.label}</span>
+      <div class="check-grid" data-checklist="${f.key}">${(f.options || []).map((o) => html`<label class="check"><input type="checkbox" value="${o.value}" ${picked.has(o.value) ? 'checked' : ''}> ${o.label}</label>`)}</div>
+      <div class="btn-row"><button type="button" class="btn btn-sm btn-ghost" data-check-all="${f.key}">Select all</button><button type="button" class="btn btn-sm btn-ghost" data-check-none="${f.key}">Clear</button></div>${hint}</div>`;
+  }
+  if (f.type === 'textarea') {
+    return html`<label class="field span-2" for="${id}"><span>${f.label}</span><textarea id="${id}" name="${f.key}" rows="4" class="mono" spellcheck="false">${value ?? ''}</textarea>${hint}</label>`;
+  }
   if (f.type === 'select' || f.type === 'select-custom') {
-    const opts = [...(f.options || [])];
+    // Options are plain strings or { value, label } pairs.
+    const opts = (f.options || []).map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
     const v = value == null ? '' : String(value);
-    if (v && !opts.includes(v)) opts.push(v);
+    if (v && !opts.some((o) => String(o.value) === v)) opts.push({ value: v, label: v });
     return html`<label class="field" for="${id}"><span>${f.label}</span>
       ${f.type === 'select-custom'
-        ? html`<input id="${id}" name="${f.key}" list="${id}-list" value="${v}"><datalist id="${id}-list">${opts.map((o) => html`<option value="${o}">`)}</datalist>`
-        : html`<select id="${id}" name="${f.key}">${f.key === 'panel.javaMajor' ? html`<option value="">Automatic</option>` : ''}${opts.map((o) => html`<option ${o === v ? 'selected' : ''}>${o}</option>`)}</select>`}
+        ? html`<input id="${id}" name="${f.key}" list="${id}-list" value="${v}"><datalist id="${id}-list">${opts.map((o) => html`<option value="${o.value}">`)}</datalist>`
+        : html`<select id="${id}" name="${f.key}">${f.key === 'panel.javaMajor' ? html`<option value="">Automatic</option>` : ''}${opts.map((o) => html`<option value="${o.value}" ${String(o.value) === v ? 'selected' : ''}>${o.label}</option>`)}</select>`}
       ${hint}</label>`;
   }
   return html`<label class="field" for="${id}"><span>${f.label}</span>
@@ -86,11 +96,21 @@ export async function render(root, { server, can, refresh, navigate, refreshServ
   };
 
   const gf = $('#game');
+  gf.addEventListener('click', (e) => {
+    const all = e.target.closest('[data-check-all]');
+    const none = e.target.closest('[data-check-none]');
+    const key = (all || none)?.dataset.checkAll || (all || none)?.dataset.checkNone;
+    if (key) gf.querySelectorAll(`[data-checklist="${key}"] input`).forEach((c) => (c.checked = !!all));
+  });
   gf.onsubmit = async (e) => {
     e.preventDefault();
     const out = {};
     for (const sec of schema.sections) {
       for (const f of sec.fields) {
+        if (f.type === 'checklist') {
+          out[f.key] = [...gf.querySelectorAll(`[data-checklist="${f.key}"] input:checked`)].map((c) => c.value);
+          continue;
+        }
         const el = gf.elements[f.key];
         if (!el) continue;
         out[f.key] = f.type === 'bool' ? el.checked : f.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;

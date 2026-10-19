@@ -215,9 +215,16 @@ export function copyText(text) {
   navigator.clipboard?.writeText(text).then(() => toast('Copied to clipboard', 'ok', 1800), () => toast(text));
 }
 
+export function artLabel(server) {
+  if (server.ark) return 'ARK';
+  if (server.cod) return server.cod.short;
+  return 'MC';
+}
+
 export function gameArt(server) {
   const t = server.template || '';
   if (t.startsWith('ark')) return 'ark';
+  if (t.startsWith('cod')) return 'cod';
   if (server.mc && server.mc.source === 'curseforge') return 'mc-cf';
   return 'mc';
 }

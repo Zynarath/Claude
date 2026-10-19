@@ -149,6 +149,10 @@ async function ensureChannel(server) {
 
 function describe(server) {
   if (server.ark) return games.ark.EDITIONS[server.ark.edition].label + ' · ' + server.ark.map;
+  if (server.cod) {
+    const t = games.cod.TITLES[server.cod.title];
+    return `${t.label} · ${(t.gametypes.find((g) => g[0] === server.cod.gametype) || [])[1] || server.cod.gametype}`;
+  }
   if (server.mc && server.mc.source === 'curseforge') return `${server.mc.curseforge?.packName || 'Modpack'} · Minecraft ${server.mc.mcVersion || ''}`;
   if (server.mc) return `Minecraft ${server.mc.mcVersion || ''} ${server.mc.loader || ''}`;
   return server.game;
@@ -212,6 +216,13 @@ function onStatus(id, status) {
       fields.push({ name: 'Map', value: server.ark.map });
       if (server.ark.settings.ServerPassword) fields.push({ name: 'Password', value: s().includePassword ? `||${server.ark.settings.ServerPassword}||` : 'Required (ask in the group)' });
       if (server.ark.mods.length) fields.push({ name: 'Mods', value: String(server.ark.mods.length) });
+    }
+    if (server.cod) {
+      const t = games.cod.TITLES[server.cod.title];
+      fields.push({ name: 'Mode', value: (t.gametypes.find((g) => g[0] === server.cod.gametype) || [])[1] || server.cod.gametype });
+      fields.push({ name: 'XP', value: `${server.cod.xpScale}x${t.weaponXp ? ` · weapon ${server.cod.weaponXpScale}x` : ''}` });
+      if (server.cod.bots.enabled) fields.push({ name: 'Bots', value: `fill to ${server.cod.bots.fill}` });
+      if (server.cod.password) fields.push({ name: 'Password', value: s().includePassword ? `||${server.cod.password}||` : 'Required (ask in the group)' });
     }
     if (server.mc) fields.push({ name: 'Version', value: `${server.mc.mcVersion || ''} ${server.mc.loader !== 'vanilla' ? server.mc.loader : ''}`.trim() });
     post(server, { title: `🟢 ${server.name} is online`, color: 'ok', fields });

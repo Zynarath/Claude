@@ -39,7 +39,7 @@ the bot's role to that channel with **View Channel** and **Send Messages**.
 | Create a channel for each game server | on | Off = everything goes to Server Updates only |
 | Player joins / leaves | on | Posted in the server's own channel |
 | Successful backups | on | Failed backups always go to Server Updates |
-| Show the ARK join password | off | Adds the password as a spoiler (`\|\|password\|\|`) to "online" messages. Only turn on if the Discord server is friends-only |
+| Show join passwords (ARK / CoD) | off | Adds the password as a spoiler (`\|\|password\|\|`) to "online" messages. Only turn on if the Discord server is friends-only |
 
 Keep the bot token secret. If it leaks, press **Reset Token** in the Developer Portal and paste
 the new one into HomePortal.

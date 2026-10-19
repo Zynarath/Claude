@@ -158,7 +158,7 @@ async function renderDiscord() {
           <label class="switch"><input type="checkbox" name="perServerChannels" ${o.perServerChannels ? 'checked' : ''}><span></span>Create a channel for each game server</label>
           <label class="switch"><input type="checkbox" name="playerEvents" ${o.playerEvents ? 'checked' : ''}><span></span>Post player joins / leaves (server channels)</label>
           <label class="switch"><input type="checkbox" name="backupEvents" ${o.backupEvents ? 'checked' : ''}><span></span>Post successful backups (server channels)</label>
-          <label class="switch"><input type="checkbox" name="includePassword" ${o.includePassword ? 'checked' : ''}><span></span>Show the ARK join password (as a spoiler) in "online" messages</label>
+          <label class="switch"><input type="checkbox" name="includePassword" ${o.includePassword ? 'checked' : ''}><span></span>Show join passwords (ARK / Call of Duty, as a spoiler) in "online" messages</label>
         </div>`
       : ''}
     <div class="form-actions">

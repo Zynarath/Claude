@@ -1,5 +1,5 @@
 import { api, onSocket, subscribe } from '../api.js';
-import { html, $, on, icon, toast, fmtBytes, fmtDuration, statusPill, gameArt, copyText, confirmBox, sparkline, bindSparkHover, esc, raw } from '../ui.js';
+import { html, $, on, icon, toast, fmtBytes, fmtDuration, statusPill, gameArt, copyText, confirmBox, sparkline, bindSparkHover, esc, raw, artLabel } from '../ui.js';
 import * as settingsTab from './tabs/settings.js';
 import * as modsTab from './tabs/mods.js';
 import * as filesTab from './tabs/files.js';
@@ -22,6 +22,7 @@ const TABS = [
 
 export function gameLine(s) {
   if (s.ark) return `${s.ark.editionLabel} · ${s.ark.map}`;
+  if (s.cod) return `${s.cod.label} · ${s.cod.gametypeLabel}`;
   if (s.mc.source === 'curseforge') return `${s.mc.curseforge?.packName || 'Modpack'} ${s.mc.curseforge?.versionName ? '· ' + s.mc.curseforge.versionName : ''}`;
   const l = { vanilla: 'Vanilla', forge: 'Forge', neoforge: 'NeoForge', fabric: 'Fabric' }[s.mc.loader] || s.mc.loader;
   return `Minecraft ${s.mc.mcVersion || ''} · ${l} ${s.mc.loaderVersion || ''}`;
@@ -39,7 +40,7 @@ export async function render(root, ctx) {
 
   root.innerHTML = html`
     <div class="server-head">
-      <div class="server-art art-${gameArt(s)}">${s.mc?.curseforge?.logo ? html`<img src="${s.mc.curseforge.logo}" alt="">` : html`<span class="art-mono">${s.ark ? 'ARK' : 'MC'}</span>`}</div>
+      <div class="server-art art-${gameArt(s)}">${s.mc?.curseforge?.logo ? html`<img src="${s.mc.curseforge.logo}" alt="">` : html`<span class="art-mono">${artLabel(s)}</span>`}</div>
       <div class="server-title">
         <h1>${s.name}</h1>
         <div class="server-meta"><span id="status-pill">${statusPill(s.runtime.status)}</span><span class="muted">${gameLine(s)}</span></div>
@@ -113,6 +114,10 @@ export async function render(root, ctx) {
           ${s.ark && s.ark.joinPassword !== undefined
             ? html`<p class="small">Join password: ${s.ark.joinPassword ? html`<code>${s.ark.joinPassword}</code> <button class="btn btn-sm btn-ghost" data-copy="${s.ark.joinPassword}">${icon('copy')}</button>` : html`<span class="pill pill-warn">none — anyone can join</span>`}</p>`
             : s.ark && s.ark.hasPassword ? html`<p class="small muted">Password protected.</p>` : ''}
+          ${s.cod && s.cod.joinPassword !== undefined
+            ? html`<p class="small">Join password: ${s.cod.joinPassword ? html`<code>${s.cod.joinPassword}</code> <button class="btn btn-sm btn-ghost" data-copy="${s.cod.joinPassword}">${icon('copy')}</button>` : html`<span class="pill pill-warn">none — anyone can join</span>`}</p>`
+            : ''}
+          ${s.cod ? html`<p class="muted small">In game, open the console (<kbd>~</kbd>) and type <code>${s.cod.joinPassword ? `password ${s.cod.joinPassword}; ` : ''}connect ${esc(s.connect || (lan[0] || 'IP') + ':' + s.cod.port)}</code>.</p>` : ''}
           ${s.ark ? html`<p class="muted small">In ARK, open the console (<kbd>~</kbd>) and type <code>open ${esc(s.connect || (lan[0] || 'IP') + ':' + s.ark.port)}</code> to join directly.</p>` : ''}
           <h4>Ports to forward on your router</h4>
           <table class="table compact"><tbody>${forward.map((p) => html`<tr><td><code>${p.port}</code></td><td>${p.proto}</td><td class="muted">${p.label}</td></tr>`)}</tbody></table>
@@ -126,6 +131,7 @@ export async function render(root, ctx) {
             <div><dt>Players</dt><dd id="players">${rt.players ? `${rt.players.online} / ${rt.players.max}` : '—'}</dd></div>
             ${s.mc ? html`<div><dt>Memory limit</dt><dd>${(s.mc.memoryMb / 1024).toFixed(1)} GB</dd></div><div><dt>Java</dt><dd>${s.mc.javaMajor || 'auto'}</dd></div>` : ''}
             ${s.ark ? html`<div><dt>Mods</dt><dd>${s.ark.mods.length}</dd></div><div><dt>Max players</dt><dd>${s.ark.maxPlayers}</dd></div>` : ''}
+            ${s.cod ? html`<div><dt>Mode</dt><dd>${s.cod.gametypeLabel}${rt.players && rt.players.map ? ' · ' + rt.players.map : ''}</dd></div><div><dt>XP</dt><dd>${s.cod.xpScale}x${s.cod.weaponXp ? ` · weapon ${s.cod.weaponXpScale}x` : ''}</dd></div><div><dt>Bots</dt><dd>${s.cod.bots.enabled ? `fill to ${s.cod.bots.fill}${rt.players && rt.players.bots != null ? ` (${rt.players.bots} in game)` : ''}` : 'off'}</dd></div>` : ''}
           </dl>
           <div id="player-list" class="chips">${(rt.players?.players || []).map((p) => html`<span class="chip">${p}</span>`)}</div>
           ${can('settings')
@@ -177,7 +183,9 @@ export async function render(root, ctx) {
   bindSparkHover(tabEl);
 
   // ---------- Console ----------
-  const QUICK = s.ark
+  const QUICK = s.cod
+    ? [['Status', 'status'], ['Next map', 'map_rotate'], ['Restart map', 'fast_restart'], ['Say…', 'say '], ['Kick…', 'clientkick ']]
+    : s.ark
     ? [['Save world', 'SaveWorld'], ['List players', 'ListPlayers'], ['Wipe wild dinos', 'DestroyWildDinos'], ['Broadcast…', 'Broadcast ']]
     : [['List players', 'list'], ['Save world', 'save-all'], ['Whitelist add…', 'whitelist add '], ['Op player…', 'op '], ['Say…', 'say ']];
   const history = [];
@@ -193,8 +201,8 @@ export async function render(root, ctx) {
         </div>
         <div class="console" id="console" tabindex="0" aria-label="Server console" aria-live="off">${raw(consoleLines.map(renderLine).join(''))}</div>
         <form class="console-input" id="cmd-form">
-          <span class="prompt">${s.ark ? 'RCON' : '>'}</span>
-          <input name="command" autocomplete="off" placeholder="${s.ark ? 'ARK admin command, e.g. ServerChat Hello' : 'Server command, e.g. say Hello'}" ${['running', 'starting'].includes(s.runtime.status) ? '' : 'disabled'}>
+          <span class="prompt">${s.ark || s.cod ? 'RCON' : '>'}</span>
+          <input name="command" autocomplete="off" placeholder="${s.ark ? 'ARK admin command, e.g. ServerChat Hello' : s.cod ? 'Server command, e.g. map mp_rust' : 'Server command, e.g. say Hello'}" ${['running', 'starting'].includes(s.runtime.status) ? '' : 'disabled'}>
           <button class="btn btn-primary" ${['running', 'starting'].includes(s.runtime.status) ? '' : 'disabled'}>Send</button>
         </form>
         ${s.ark ? html`<p class="muted small">ARK has no live console; the panel shows <code>ShooterGame.log</code> and sends commands over RCON once the server has finished loading.</p>` : ''}

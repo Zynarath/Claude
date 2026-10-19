@@ -5,7 +5,14 @@ import { pickCurseForge } from './cfpicker.js';
 const ART = { ark: 'ark', 'ark-ase': 'ark', 'mc-cf': 'mc-cf', mc: 'mc' };
 
 export async function render(root, { navigate, refreshServers }) {
-  const { templates, curseforgeKey, platform } = await api.get('/api/templates');
+  const [{ templates, curseforgeKey, platform }, { servers: existing }] = await Promise.all([api.get('/api/templates'), api.get('/api/servers')]);
+  // "Ark SE Server 1", "Ark SE Server 2"... skipping numbers already taken.
+  const nextName = (prefix) => {
+    for (let n = 1; ; n++) if (!existing.some((x) => x.name.toLowerCase() === `${prefix} ${n}`.toLowerCase())) return `${prefix} ${n}`;
+  };
+  const words = ['raptor', 'trike', 'rex', 'dodo', 'stego', 'ptera', 'carno', 'bronto', 'creeper', 'ender'];
+  const friendlyPassword = () => `${words[Math.floor(Math.random() * words.length)]}-${Math.floor(1000 + Math.random() * 9000)}`;
+  let autoName = '';
   let tpl = null;
   let pack = null; // { mod, fileId }
 
@@ -34,7 +41,8 @@ export async function render(root, { navigate, refreshServers }) {
         <button class="link-btn" id="back">← All games</button>
         <h1>${tpl.title}</h1></div></div>
       <form id="create-form" class="panel form-grid">
-        <label class="field span-2"><span>Server name</span><input name="name" required maxlength="48" placeholder="${isMc ? 'Our modded world' : 'Dino Island'}"></label>
+        <label class="field span-2"><span>Server name</span><input name="name" required maxlength="48" value="${tpl.namePrefix ? nextName(tpl.namePrefix) : ''}" placeholder="${isMc ? 'Filled in from the modpack name' : 'Ark SE Server 1'}">
+          <small class="hint">Also used for this server's Discord channel.</small></label>
         ${tpl.id === 'mc-curseforge' ? cfSection(curseforgeKey) : ''}
         ${tpl.id === 'mc-custom' ? mcCustomSection() : ''}
         ${isMc ? mcCommon(ports) : arkSection(tpl, ports)}
@@ -62,7 +70,7 @@ export async function render(root, { navigate, refreshServers }) {
       const d = Object.fromEntries(new FormData(f));
       const body = { template: tpl.id, name: d.name, eulaAccepted: !!d.eula };
       if (isMc) {
-        body.mc = { memoryMb: Number(d.memoryMb), port: Number(d.port), maxPlayers: Number(d.maxPlayers) };
+        body.mc = { memoryMb: Number(d.memoryMb), port: Number(d.port), maxPlayers: Number(d.maxPlayers), whitelist: !!d.whitelist, whitelistNames: d.whitelistNames };
         if (tpl.id === 'mc-curseforge') {
           if (!pack) return toast('Pick a modpack first', 'warn');
           Object.assign(body.mc, { modId: pack.mod.id, fileId: Number(d.fileId) });
@@ -109,7 +117,7 @@ export async function render(root, { navigate, refreshServers }) {
       if (!picked) return;
       const mod = picked[0];
       pack = { mod };
-      if (!f.name.value) f.name.value = mod.name.slice(0, 48);
+      if (!f.name.value || f.name.value === autoName) f.name.value = autoName = mod.name.slice(0, 48);
       $('#pack-box').innerHTML = html`<div class="pack-chosen">${mod.logo ? html`<img src="${mod.logo}" alt="">` : ''}
         <div><strong>${mod.name}</strong><small>${mod.summary}</small></div><button type="button" class="btn btn-sm" id="pick-pack">Change</button></div>`.s;
       $('#pick-pack').onclick = choose;
@@ -169,6 +177,10 @@ export async function render(root, { navigate, refreshServers }) {
       <label class="field"><span>Max players</span><input type="number" name="maxPlayers" value="10" min="1" max="500"></label>
       <label class="field"><span>Port (TCP)</span><input type="number" name="port" value="${ports.port || 25565}" min="1024" max="65535"></label>
       <div></div>
+      <label class="switch field-switch span-2"><input type="checkbox" name="whitelist" checked><span></span>Friends only (whitelist)
+        <small class="hint">Minecraft has no join passwords — the whitelist is how you keep it private. Only listed players can join.</small></label>
+      <label class="field span-2"><span>Your group's Minecraft usernames</span><input name="whitelistNames" placeholder="e.g. Zynarath, FriendName" autocomplete="off">
+        <small class="hint">Comma-separated. Added automatically the first time the server starts; manage later in the Players tab.</small></label>
       <label class="check span-2"><input type="checkbox" name="eula" required> I agree to the <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noopener">Minecraft EULA</a></label>`;
   }
 
@@ -181,10 +193,11 @@ export async function render(root, { navigate, refreshServers }) {
       <label class="field" id="custom-map" hidden><span>Map name</span><input name="customMap" placeholder="e.g. Svartalfheim_WP"></label>
       <label class="field"><span>Max players</span><input type="number" name="maxPlayers" value="20" min="1" max="200"></label>
       <label class="field"><span>Name in server list</span><input name="sessionName" maxlength="60" placeholder="Same as server name"></label>
-      <label class="field"><span>Join password (optional)</span><input name="serverPassword" autocomplete="off"></label>
+      <label class="field"><span>Join password</span><input name="serverPassword" autocomplete="off" value="${friendlyPassword()}">
+        <small class="hint">Your friends type this to join. Clear it to make the server public.</small></label>
       <label class="field"><span>Admin password</span><input name="adminPassword" autocomplete="off" placeholder="Generated if left blank"></label>
       <label class="field span-2"><span>Mods (${t.edition === 'asa' ? 'CurseForge project IDs' : 'Steam Workshop IDs'}, comma-separated)</span>
-        <div class="input-row"><input name="mods" placeholder="e.g. 928988,929420">
+        <div class="input-row"><input name="mods" placeholder="${t.edition === 'asa' ? 'e.g. 928988,929420' : 'e.g. 731604991,889745138'}">
           ${t.edition === 'asa' ? html`<button type="button" class="btn" id="ark-mod-search">${icon('search')}Browse</button>` : ''}</div>
         <small class="hint">${t.edition === 'asa' ? 'ASA downloads mods automatically when the server starts.' : 'Steam Workshop IDs. Downloaded on start with -automanagedmods.'}</small></label>
       <details class="span-2 adv"><summary>Ports</summary><div class="form-grid">

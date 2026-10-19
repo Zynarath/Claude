@@ -22,7 +22,7 @@ app.use((_req, res, next) => {
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' data: https://media.forgecdn.net https://*.forgecdn.net; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'none'"
+    "default-src 'self'; img-src 'self' data: https://media.forgecdn.net https://*.forgecdn.net https://mc-heads.net; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'none'"
   );
   next();
 });
@@ -149,6 +149,7 @@ manager.on('removed', (id) => {
 // ---- start ----
 manager.init();
 require('./services/ddns').start();
+require('./services/discord').init(manager);
 server.listen(config.port, config.host, () => {
   const proto = useHttps ? 'https' : 'http';
   log.info(`HomePortal is running at ${proto}://localhost:${config.port}`);

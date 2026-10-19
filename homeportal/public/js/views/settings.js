@@ -43,6 +43,7 @@ export async function render(root) {
       <div class="form-actions"><button class="btn btn-primary">Save</button><button type="button" class="btn" id="dd-run">${icon('refresh')}Update now</button>
         <button type="button" class="btn btn-ghost" id="dd-use">Use first hostname as public address</button></div>
     </form>
+    <form id="dc" class="panel"><h3>Discord</h3><div id="dc-body"><div class="loading">Checking Discord…</div></div></form>
     <div class="panel">
       <h3>This PC</h3>
       <dl class="kv">
@@ -105,6 +106,88 @@ export async function render(root) {
     if (!host) return toast('Add a hostname first', 'warn');
     await api.put('/api/settings', { publicAddress: host }).then(() => { toast(`Public address set to ${host}`, 'ok'); render(root); }, (e) => toast(e.message, 'error'));
   };
+  renderDiscord();
   const clear = $('#clear-key');
   if (clear) clear.onclick = () => api.put('/api/settings', { clearCurseforgeKey: true }).then(() => render(root));
+}
+
+async function renderDiscord() {
+  const box = $('#dc-body');
+  if (!box) return;
+  let o;
+  try {
+    o = await api.get('/api/settings/discord');
+  } catch (err) {
+    box.innerHTML = html`<div class="form-error">${err.message}</div>`.s;
+    return;
+  }
+  const updatesId = o.updatesChannelId || o.suggestedUpdatesChannelId || '';
+  const step = !o.tokenSet ? 1 : !o.bot ? 1 : !o.guilds.length ? 2 : 3;
+  box.innerHTML = html`
+    <p class="muted small">A bot posts server news (online, offline, crashes, updates, new modpack versions) to your <strong>Server Updates</strong> channel,
+      and gives every game server its own text channel named after it (e.g. <code>#ark-se-server-1</code>), where player joins and backups go too.</p>
+    ${o.error ? html`<div class="callout callout-bad">${icon('alert')}<div>${o.error}</div></div>` : ''}
+    ${o.lastError && !o.error ? html`<div class="callout callout-warn">${icon('alert')}<div>Last message failed: ${o.lastError}</div></div>` : ''}
+
+    <h4>1 · Bot token ${o.bot ? html`<span class="pill pill-ok">${icon('check')}${o.bot.name}</span>` : ''}</h4>
+    ${step === 1
+      ? html`<ol class="steps small">
+          <li>Open the <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a> → <strong>New Application</strong> → name it e.g. <em>HomePortal</em>.</li>
+          <li>Go to <strong>Bot</strong> → <strong>Reset Token</strong> → copy the token. (No privileged intents are needed.)</li>
+          <li>Paste it here and save.</li></ol>`
+      : ''}
+    <label class="field"><span>Bot token</span><input name="token" type="password" autocomplete="off" placeholder="${o.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste the bot token'}"></label>
+
+    ${o.bot
+      ? html`<h4>2 · Add the bot to your Discord server</h4>
+        <p class="small"><a class="btn btn-sm" href="${o.bot.inviteUrl}" target="_blank" rel="noopener">${icon('external')}Invite ${o.bot.name}</a>
+          <span class="muted">Pick your server. It asks for: View Channels, Send Messages, Embed Links, Manage Channels.</span></p>
+        ${o.guilds.length
+          ? html`<label class="field"><span>Discord server</span><select name="guildId">${o.guilds.map((g) => html`<option value="${g.id}" ${g.id === o.guildId ? 'selected' : ''}>${g.name}</option>`)}</select></label>`
+          : html`<p class="muted small">The bot isn't in any server yet. Invite it, then press <em>Refresh</em>.</p>`}`
+      : ''}
+
+    ${o.channels.length
+      ? html`<h4>3 · Channels</h4>
+        <div class="form-grid">
+          <label class="field"><span>Server Updates channel</span><select name="updatesChannelId"><option value="">— choose —</option>${o.channels.map((c) => html`<option value="${c.id}" ${c.id === updatesId ? 'selected' : ''}>#${c.name}</option>`)}</select></label>
+          <label class="field"><span>Put per-server channels in category</span><select name="categoryId"><option value="">Same category as Server Updates</option>${o.categories.map((c) => html`<option value="${c.id}" ${c.id === o.categoryId ? 'selected' : ''}>${c.name}</option>`)}</select></label>
+        </div>
+        <div class="toggles">
+          <label class="switch"><input type="checkbox" name="enabled" ${o.enabled ? 'checked' : ''}><span></span><strong>Send notifications</strong></label>
+          <label class="switch"><input type="checkbox" name="perServerChannels" ${o.perServerChannels ? 'checked' : ''}><span></span>Create a channel for each game server</label>
+          <label class="switch"><input type="checkbox" name="playerEvents" ${o.playerEvents ? 'checked' : ''}><span></span>Post player joins / leaves (server channels)</label>
+          <label class="switch"><input type="checkbox" name="backupEvents" ${o.backupEvents ? 'checked' : ''}><span></span>Post successful backups (server channels)</label>
+          <label class="switch"><input type="checkbox" name="includePassword" ${o.includePassword ? 'checked' : ''}><span></span>Show the ARK join password (as a spoiler) in "online" messages</label>
+        </div>`
+      : ''}
+    <div class="form-actions">
+      <button class="btn btn-primary">Save</button>
+      <button type="button" class="btn" id="dc-refresh">${icon('refresh')}Refresh</button>
+      ${o.channels.length ? html`<button type="button" class="btn" id="dc-test">Send test message</button><button type="button" class="btn btn-ghost" id="dc-sync">Create / rename server channels</button>` : ''}
+      ${o.tokenSet ? html`<button type="button" class="btn btn-ghost btn-danger-text" id="dc-clear">Disconnect</button>` : ''}
+    </div>`.s;
+
+  const f = $('#dc');
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const body = { token: f.token.value };
+    for (const k of ['guildId', 'updatesChannelId', 'categoryId']) if (f.elements[k]) body[k] = f.elements[k].value;
+    for (const k of ['enabled', 'perServerChannels', 'playerEvents', 'backupEvents', 'includePassword']) if (f.elements[k]) body[k] = f.elements[k].checked;
+    if (o.guilds.length === 1 && !body.guildId) body.guildId = o.guilds[0].id;
+    try {
+      await api.put('/api/settings', { discord: body });
+      toast(body.enabled ? 'Saved — server channels are being created' : 'Saved', 'ok');
+      renderDiscord();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+  $('#dc-refresh').onclick = () => renderDiscord();
+  const t = $('#dc-test');
+  if (t) t.onclick = () => api.post('/api/settings/discord/test').then(() => toast('Test message sent', 'ok'), (e) => toast(e.message, 'error'));
+  const sy = $('#dc-sync');
+  if (sy) sy.onclick = () => api.post('/api/settings/discord/sync').then((r) => toast(`${r.synced} server channel(s) ready`, 'ok'), (e) => toast(e.message, 'error'));
+  const cl = $('#dc-clear');
+  if (cl) cl.onclick = () => api.put('/api/settings', { discord: { clearToken: true } }).then(renderDiscord);
 }

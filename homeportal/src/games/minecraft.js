@@ -93,6 +93,9 @@ const minecraft = {
       curseforge: mc.source === 'curseforge' ? { modId: Number(mc.modId), fileId: Number(mc.fileId) } : null,
       motd: mc.motd || input.name,
       maxPlayers: Number(mc.maxPlayers) || 10,
+      // Friends-only by default: whitelist on, names added once the server first runs.
+      whitelistDefault: mc.whitelist !== false,
+      pendingWhitelist: cleanNames(mc.whitelistNames),
     };
   },
 
@@ -110,6 +113,10 @@ const minecraft = {
     if (props.get('motd') === undefined) props.set('motd', server.mc.motd || server.name);
     if (props.get('max-players') === undefined) props.set('max-players', server.mc.maxPlayers || 10);
     if (props.get('allow-flight') === undefined && server.mc.loader !== 'vanilla') props.set('allow-flight', 'true');
+    if (server.mc.whitelistDefault && props.get('white-list') === undefined) {
+      props.set('white-list', 'true');
+      props.set('enforce-whitelist', 'true');
+    }
     writeProps(server, props);
   },
 
@@ -266,6 +273,76 @@ const minecraft = {
     log && log.info(`Added mod ${file.fileName}`);
     return { file: file.fileName };
   },
+};
+
+const NAME_RE = /^[A-Za-z0-9_]{3,16}$/;
+function splitNames(input) {
+  const list = Array.isArray(input) ? input : String(input || '').split(/[,;\n]+/);
+  return list.map((n) => String(n).trim()).filter(Boolean);
+}
+function cleanNames(input) {
+  return [...new Set(splitNames(input).filter((n) => NAME_RE.test(n)))];
+}
+
+// ---- whitelist (Minecraft's equivalent of a server password) ----
+function whitelistFile(server) {
+  return path.join(server.dir, 'whitelist.json');
+}
+function readWhitelist(server) {
+  try {
+    return JSON.parse(fs.readFileSync(whitelistFile(server), 'utf8')).map((e) => e.name).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+minecraft.NAME_RE = NAME_RE;
+minecraft.cleanNames = cleanNames;
+minecraft.splitNames = splitNames;
+minecraft.whitelist = function (server) {
+  const props = readProps(server);
+  return {
+    enabled: (props.get('white-list') ?? 'false') === 'true',
+    players: readWhitelist(server).sort((a, b) => a.localeCompare(b)),
+    pending: server.mc.pendingWhitelist || [],
+  };
+};
+minecraft.whitelistAdd = function (server, instance, name) {
+  if (!NAME_RE.test(name)) throw new HttpError(400, 'Minecraft usernames are 3–16 letters, numbers or underscores');
+  if (instance.child && instance.status === 'running') {
+    instance.writeStdin(`whitelist add ${name}`);
+    return { applied: true };
+  }
+  // Offline: the server looks up the player's UUID itself when it next starts.
+  server.mc.pendingWhitelist = [...new Set([...(server.mc.pendingWhitelist || []), name])];
+  return { applied: false };
+};
+minecraft.whitelistRemove = function (server, instance, name) {
+  server.mc.pendingWhitelist = (server.mc.pendingWhitelist || []).filter((n) => n.toLowerCase() !== name.toLowerCase());
+  if (instance.child && instance.status === 'running') {
+    instance.writeStdin(`whitelist remove ${name}`);
+    return;
+  }
+  const file = whitelistFile(server);
+  if (fs.existsSync(file)) {
+    const list = JSON.parse(fs.readFileSync(file, 'utf8')).filter((e) => String(e.name).toLowerCase() !== name.toLowerCase());
+    fs.writeFileSync(file, JSON.stringify(list, null, 2));
+  }
+};
+minecraft.setWhitelistEnabled = function (server, instance, enabled) {
+  const props = readProps(server);
+  props.set('white-list', enabled ? 'true' : 'false');
+  props.set('enforce-whitelist', enabled ? 'true' : 'false');
+  writeProps(server, props);
+  if (instance.child && instance.status === 'running') instance.writeStdin(`whitelist ${enabled ? 'on' : 'off'}`);
+};
+// Called when the server reports it's ready.
+minecraft.onReady = function (server, instance) {
+  const pending = server.mc.pendingWhitelist || [];
+  if (!pending.length) return false;
+  for (const n of pending) instance.writeStdin(`whitelist add ${n}`);
+  instance.appendConsole(`[panel] Added ${pending.length} player(s) to the whitelist: ${pending.join(', ')}`);
+  server.mc.pendingWhitelist = [];
+  return true;
 };
 
 function groupFields(fields) {

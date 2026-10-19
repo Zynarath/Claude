@@ -58,7 +58,8 @@ function view(inst, user, full = false) {
     };
   }
   if (s.ark) {
-    out.ark = { edition: s.ark.edition, editionLabel: games.ark.EDITIONS[s.ark.edition].label, map: s.ark.map, maxPlayers: s.ark.maxPlayers, port: s.ark.port, mods: s.ark.mods, clusterId: s.ark.clusterId };
+    out.ark = { edition: s.ark.edition, editionLabel: games.ark.EDITIONS[s.ark.edition].label, map: s.ark.map, maxPlayers: s.ark.maxPlayers, port: s.ark.port, mods: s.ark.mods, clusterId: s.ark.clusterId, hasPassword: !!s.ark.settings.ServerPassword };
+    if (perms.includes('settings') || perms.includes('admin')) out.ark.joinPassword = s.ark.settings.ServerPassword || '';
   }
   if (full) {
     Object.assign(out, {
@@ -105,7 +106,10 @@ router.patch('/servers/:id', (req, res) => {
   if (b.name !== undefined) {
     const name = String(b.name).trim();
     if (!name || name.length > 48) throw new HttpError(400, 'Name must be 1–48 characters');
-    s.name = name;
+    if (s.name !== name) {
+      s.name = name;
+      manager.emit('renamed', s.id);
+    }
   }
   if (b.autoStart !== undefined) s.autoStart = !!b.autoStart;
   if (b.autoRestart !== undefined) s.autoRestart = !!b.autoRestart;
@@ -334,6 +338,46 @@ router.delete('/servers/:id/schedules/:sid', (req, res) => {
   const inst = load(req, 'schedules');
   inst.server.schedules = (inst.server.schedules || []).filter((x) => x.id !== req.params.sid);
   db.save();
+  res.json({ ok: true });
+});
+
+// ---- Minecraft whitelist ----
+function mcOnly(inst) {
+  if (inst.server.game !== 'minecraft') throw new HttpError(400, 'Only Minecraft servers have a whitelist');
+  return inst;
+}
+
+router.get('/servers/:id/whitelist', (req, res) => {
+  const inst = mcOnly(load(req, 'settings'));
+  res.json({ ...inst.game.whitelist(inst.server), running: inst.status === 'running', online: inst.players ? inst.players.players : [] });
+});
+
+router.post('/servers/:id/whitelist', (req, res) => {
+  const inst = mcOnly(load(req, 'settings'));
+  const raw = inst.game.splitNames(req.body && req.body.names);
+  const bad = raw.filter((n) => !inst.game.NAME_RE.test(n));
+  if (bad.length) throw new HttpError(400, `Not valid Minecraft usernames: ${bad.join(', ')} (3–16 letters, numbers or underscores, separate names with commas)`);
+  const names = inst.game.cleanNames(raw);
+  if (!names.length) throw new HttpError(400, 'Enter at least one Minecraft username');
+  let applied = true;
+  for (const n of names) applied = inst.game.whitelistAdd(inst.server, inst, n).applied && applied;
+  db.save();
+  inst.appendConsole(`[players] ${req.user.username} whitelisted ${names.join(', ')}${applied ? '' : ' (applied on next start)'}`);
+  res.json({ ok: true, applied });
+});
+
+router.delete('/servers/:id/whitelist/:name', (req, res) => {
+  const inst = mcOnly(load(req, 'settings'));
+  if (!inst.game.NAME_RE.test(req.params.name)) throw new HttpError(400, 'Invalid name');
+  inst.game.whitelistRemove(inst.server, inst, req.params.name);
+  db.save();
+  inst.appendConsole(`[players] ${req.user.username} removed ${req.params.name} from the whitelist`);
+  res.json({ ok: true });
+});
+
+router.put('/servers/:id/whitelist/enabled', (req, res) => {
+  const inst = mcOnly(load(req, 'settings'));
+  inst.game.setWhitelistEnabled(inst.server, inst, !!(req.body && req.body.enabled));
   res.json({ ok: true });
 });
 

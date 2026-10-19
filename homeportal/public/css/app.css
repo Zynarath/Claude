@@ -387,3 +387,9 @@ a.chip:hover { color: var(--text); text-decoration: none; }
   .perm-list { columns: 1; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* whitelist */
+.wl-list { list-style: none; padding: 0; margin: 14px 0 6px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.wl-list li { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.wl-list li > span:nth-child(2) { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.wl-list img, .wl-list .cf-noimg { width: 28px; height: 28px; border-radius: 5px; image-rendering: pixelated; }

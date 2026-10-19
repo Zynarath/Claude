@@ -12,7 +12,7 @@ There are no monthly hosting fees; your only cost is electricity.
 | **ARK: Survival Ascended** (Windows) | Installs/updates via SteamCMD, CurseForge mod list (search + IDs; the server auto-downloads mods on start), map/cluster/crossplay options, INI settings form, RCON console, player list |
 | **Minecraft — CurseForge modpack** | Search CurseForge, pick a version, one-click install. Uses the pack's official server files when available, otherwise builds the server from the manifest. One-click **update / downgrade** with automatic backup that keeps worlds, `server.properties`, ops and whitelist |
 | **Minecraft — Vanilla / Fabric / Forge / NeoForge** | Any version + loader, add individual CurseForge mods, enable/disable mods, change versions later |
-| **ARK: Survival Evolved** (Windows/Linux) | Legacy support: SteamCMD install, Workshop mods via `-automanagedmods` |
+| **ARK: Survival Evolved** (Windows/Linux) | SteamCMD install/update, Workshop mods via `-automanagedmods`, same settings form, RCON console and player list as ASA |
 
 The panel downloads the right Java version for each Minecraft server by itself (Java 8/17/21/25 from
 Eclipse Temurin). You don't need to install Java.
@@ -31,6 +31,9 @@ Eclipse Temurin). You don't need to install Java.
 - **CPU affinity and priority** per server. On a 9950X3D you can pin servers to the second CCD
   (CPUs 16–31) so the game you're playing keeps the 3D V-Cache CCD to itself
 - Clean shutdown: closing the panel saves and stops all servers first
+- Friends-only by default: ARK servers get a generated join password, Minecraft servers a
+  whitelist you manage in the **Players** tab
+- Discord bot: posts to a Server Updates channel and keeps one channel per game server
 - Custom domain support: built-in Cloudflare dynamic DNS for game hostnames, and works behind a
   Cloudflare Tunnel for the panel
 
@@ -72,6 +75,11 @@ server's Overview tab. When it's done, press **Start**.
 To put the panel at `https://panel.<yourdomain>` (free HTTPS through a Cloudflare Tunnel, no
 ports opened) and give players `play.<yourdomain>`, which HomePortal keeps pointed at your home
 IP, follow **[docs/domain-setup.md](docs/domain-setup.md)**.
+
+## Discord notifications
+
+A built-in bot posts to your **#server-updates** channel and keeps a channel per game server
+(`#ark-se-server-1`, `#all-the-mods-10`...). Setup: **[docs/discord-setup.md](docs/discord-setup.md)**.
 
 ## Letting your friend in
 

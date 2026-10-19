@@ -9,6 +9,7 @@ const cf = require('../services/curseforge');
 const loaders = require('../services/loaders');
 const java = require('../services/java');
 const ddns = require('../services/ddns');
+const discord = require('../services/discord');
 const procstats = require('../util/procstats');
 const { HttpError } = require('../util/misc');
 
@@ -58,6 +59,7 @@ router.get('/settings', auth.requireAdmin, (_req, res) => {
     serversDir: config.serversDir,
     backupsDir: config.backupsDir,
     ddns: ddns.publicStatus(),
+    discord: discord.publicSettings(),
   });
 });
 
@@ -68,6 +70,22 @@ router.put('/settings', auth.requireAdmin, (req, res) => {
   if (b.publicAddress !== undefined) s.publicAddress = String(b.publicAddress).trim().slice(0, 120);
   if (b.curseforgeApiKey !== undefined && b.curseforgeApiKey !== '') s.curseforgeApiKey = String(b.curseforgeApiKey).trim();
   if (b.clearCurseforgeKey) s.curseforgeApiKey = '';
+  if (b.discord) {
+    const cur = db.data.settings.discord || {};
+    const d = { ...cur };
+    const x = b.discord;
+    if (x.token) {
+      d.token = String(x.token).trim().replace(/^Bot\s+/i, '');
+      if (d.token !== cur.token) Object.assign(d, { guildId: '', updatesChannelId: '', categoryId: '' });
+    }
+    if (x.clearToken) Object.assign(d, { token: '', enabled: false });
+    for (const k of ['guildId', 'updatesChannelId', 'categoryId']) if (x[k] !== undefined) d[k] = /^\d{0,25}$/.test(String(x[k])) ? String(x[k]) : '';
+    for (const k of ['enabled', 'perServerChannels', 'playerEvents', 'backupEvents', 'includePassword']) if (x[k] !== undefined) d[k] = !!x[k];
+    if (d.enabled && (!d.token || !d.guildId || !d.updatesChannelId)) throw new HttpError(400, 'Connect the bot and pick your Discord server and Server Updates channel before turning notifications on');
+    s.discord = d;
+    // Create the per-server channels right away so they show up when notifications are turned on.
+    if (d.enabled && !cur.enabled) discord.syncChannels().catch(() => {});
+  }
   if (b.ddns) {
     const d = { ...(s.ddns || {}) };
     if (b.ddns.hostnames !== undefined) d.hostnames = ddns.cleanHostnames(b.ddns.hostnames);
@@ -87,6 +105,19 @@ router.put('/settings', auth.requireAdmin, (req, res) => {
 router.post('/settings/ddns/run', auth.requireAdmin, async (_req, res) => {
   await ddns.runOnce({ force: true });
   res.json(ddns.publicStatus());
+});
+
+router.get('/settings/discord', auth.requireAdmin, async (_req, res) => {
+  res.json(await discord.overview());
+});
+
+router.post('/settings/discord/test', auth.requireAdmin, async (_req, res) => {
+  await discord.test();
+  res.json({ ok: true });
+});
+
+router.post('/settings/discord/sync', auth.requireAdmin, async (_req, res) => {
+  res.json(await discord.syncChannels());
 });
 
 // ---- CurseForge browsing ----

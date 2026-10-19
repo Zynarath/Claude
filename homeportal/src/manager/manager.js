@@ -39,6 +39,13 @@ class Manager extends EventEmitter {
     for (const ev of ['status', 'console', 'job']) inst.on(ev, (payload) => this.emit(ev, server.id, payload));
     inst.on('status', () => {
       server.lastStatus = inst.status;
+      if (inst.status === 'running' && inst.game.onReady) {
+        try {
+          inst.game.onReady(server, inst);
+        } catch (err) {
+          log.warn(`onReady for ${server.name} failed: ${err.message}`);
+        }
+      }
       db.save();
     });
     this.instances.set(server.id, inst);
@@ -160,6 +167,7 @@ class Manager extends EventEmitter {
     db.save();
     const inst = this.attach(server);
     log.info(`${user.username} created server ${name} (${tpl.id})`);
+    this.emit('created', id);
     this.install(id).catch(() => {});
     return inst;
   }
@@ -281,7 +289,7 @@ class Manager extends EventEmitter {
       fs.rmSync(backups.dirFor(server), { recursive: true, force: true });
     }
     inst.removeAllListeners();
-    this.emit('removed', id);
+    this.emit('removed', id, server);
   }
 
   async shutdownAll() {

@@ -54,21 +54,32 @@ running on the same PC, so secure cookies, sign-in rate limiting and the live co
 For safety, the **first admin account can still only be created at http://localhost:8080 on the
 PC itself**. Requests through the tunnel are treated as remote.
 
-### Strongly recommended: lock the panel down
+### Lock the panel to just you and your friend
 
-The panel can run commands on your PC, so add at least one of these:
+The panel can run commands on your PC, so only you two should be able to reach it. Use both:
 
 - **2FA**: every account → *Your account* → *Set up 2FA*.
 - **Cloudflare Access** (free for up to 50 people): Zero Trust → **Access → Applications → Add →
   Self-hosted** → domain `panel.thefinalhour.us` → add a policy with action *Allow* and
-  *Emails* = your email and your friend's email. Cloudflare then asks for a one-time code sent to
-  that email before anyone even reaches the HomePortal sign-in page. The live console keeps working
-  behind Access.
+  *Include → Emails* = **your email and your friend's email only**. Everyone else is stopped by
+  Cloudflare before they ever see the HomePortal sign-in page. You two get a one-time code by
+  email (session length is configurable, e.g. 1 month). The live console keeps working behind
+  Access.
+- In HomePortal, give your friend their own account under **Users & access**: role *Admin* if
+  they should manage everything, or *User* with per-server permissions.
 - Optional: if you only ever use the panel through the domain, set `"host": "127.0.0.1"` in
   `config.json`. The panel then only answers the tunnel and this PC, not other devices on your
   network. Skip this if you also use Tailscale or LAN access.
 
 ## 3. Games: `play.thefinalhour.us`
+
+Your friend group joins the games directly (not through the panel), so keep the servers private
+the way each game supports:
+
+- **ARK (SE and SA)**: a join password. HomePortal fills in a random one like `stego-7095` when you
+  create the server. See or change it under the server's Overview or Settings → *Join password*.
+- **Minecraft**: a whitelist (Minecraft has no join passwords). New servers are *friends only* by
+  default. Add your group's usernames in the server's **Players** tab.
 
 ### 3a. Keep the hostname pointed at your home IP
 

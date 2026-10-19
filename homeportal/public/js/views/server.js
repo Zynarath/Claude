@@ -6,11 +6,13 @@ import * as filesTab from './tabs/files.js';
 import * as backupsTab from './tabs/backups.js';
 import * as schedulesTab from './tabs/schedules.js';
 import * as accessTab from './tabs/access.js';
+import * as playersTab from './tabs/players.js';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'activity' },
   { id: 'console', label: 'Console', icon: 'terminal', perm: 'console' },
   { id: 'settings', label: 'Settings', icon: 'settings', perm: 'settings', mod: settingsTab },
+  { id: 'players', label: 'Players', icon: 'users', perm: 'settings', mod: playersTab, game: 'minecraft' },
   { id: 'mods', label: 'Mods', icon: 'box', perm: 'mods', mod: modsTab },
   { id: 'files', label: 'Files', icon: 'folder', perm: 'files', mod: filesTab },
   { id: 'backups', label: 'Backups', icon: 'archive', perm: 'backups', mod: backupsTab },
@@ -30,7 +32,7 @@ export async function render(root, ctx) {
   const { server: initial } = await api.get(`/api/servers/${id}`);
   let s = initial;
   const can = (p) => s.perms.includes(p) || s.perms.includes('admin');
-  const tabs = TABS.filter((t) => !t.perm || can(t.perm));
+  const tabs = TABS.filter((t) => (!t.perm || can(t.perm)) && (!t.game || t.game === s.game));
   const tab = tabs.find((t) => t.id === tabParam) || tabs[0];
   let consoleLines = [];
   let tabCleanup = null;
@@ -108,6 +110,9 @@ export async function render(root, ctx) {
                 <p class="muted small">Public address. For players on your own network use <code>${lan[0] || 'your LAN IP'}:${s.ports[0].port}</code>.</p>`
             : html`<p class="muted">Set your public IP / domain under <a href="#/settings">Panel settings</a> to show a shareable address.</p>
                 ${lan.length ? html`<div class="address"><code>${lan[0]}:${s.ports[0].port}</code><button class="btn btn-sm" data-copy="${lan[0]}:${s.ports[0].port}">${icon('copy')}Copy</button></div><p class="muted small">LAN / Tailscale address</p>` : ''}`}
+          ${s.ark && s.ark.joinPassword !== undefined
+            ? html`<p class="small">Join password: ${s.ark.joinPassword ? html`<code>${s.ark.joinPassword}</code> <button class="btn btn-sm btn-ghost" data-copy="${s.ark.joinPassword}">${icon('copy')}</button>` : html`<span class="pill pill-warn">none — anyone can join</span>`}</p>`
+            : s.ark && s.ark.hasPassword ? html`<p class="small muted">Password protected.</p>` : ''}
           ${s.ark ? html`<p class="muted small">In ARK, open the console (<kbd>~</kbd>) and type <code>open ${esc(s.connect || (lan[0] || 'IP') + ':' + s.ark.port)}</code> to join directly.</p>` : ''}
           <h4>Ports to forward on your router</h4>
           <table class="table compact"><tbody>${forward.map((p) => html`<tr><td><code>${p.port}</code></td><td>${p.proto}</td><td class="muted">${p.label}</td></tr>`)}</tbody></table>

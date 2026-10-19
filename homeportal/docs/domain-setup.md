@@ -1,0 +1,132 @@
+# Using your own domain (thefinalhour.us)
+
+When you're done:
+
+| Address | Goes to | How |
+|---|---|---|
+| `https://panel.thefinalhour.us` | The HomePortal panel | Cloudflare Tunnel: free HTTPS, no router ports opened, your home IP stays hidden |
+| `play.thefinalhour.us` | Your game servers | A DNS record HomePortal keeps updated with your home IP, plus router port forwarding |
+
+The panel and the games need different setups. Cloudflare can proxy and tunnel websites for free,
+but it can't carry game traffic (Minecraft TCP or ARK UDP) on the free plan. So the game hostname
+has to point straight at your home IP.
+
+Everything below is free. It assumes HomePortal is already installed and working at
+`http://localhost:8080`.
+
+---
+
+## 1. Move the domain's DNS to Cloudflare (one time, ~15 minutes)
+
+You keep your registrar (wherever you bought `thefinalhour.us`). Only the DNS moves.
+
+1. Make a free account at <https://dash.cloudflare.com/sign-up>.
+2. **Add a domain** → `thefinalhour.us` → pick the **Free** plan.
+3. Cloudflare scans your existing DNS records. If the domain already has a website or **email**
+   (MX records), check those records appear in the list before continuing, so nothing breaks.
+4. Cloudflare shows two nameservers, like `xxx.ns.cloudflare.com`. At your registrar, replace the
+   domain's nameservers with those two.
+5. Wait until Cloudflare emails that the domain is **Active**. This usually takes minutes, but
+   can take up to 24 hours.
+
+## 2. Panel: `panel.thefinalhour.us` through a Cloudflare Tunnel
+
+The tunnel is a small program (`cloudflared`) running on your PC. It makes an outgoing connection
+to Cloudflare, so you don't open any port for the panel.
+
+1. In the Cloudflare dashboard open **Zero Trust**. The first visit asks for a team name; the free
+   plan is fine. Go to **Networks → Tunnels → Create a tunnel**.
+2. Choose **Cloudflared**, name it `homeportal`, and choose **Windows** as the environment.
+3. Cloudflare shows an install command containing a long token (`eyJ...`). Copy the token, then in
+   an **administrator** PowerShell in the HomePortal folder run:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\setup-cloudflare-tunnel.ps1 -Token eyJ...your-token...
+   ```
+   This installs `cloudflared` as a Windows service that starts with your PC. You can also just
+   paste the command Cloudflare shows.
+4. Back in the dashboard, add a **public hostname** (also called a published application route):
+   - Subdomain: `panel` · Domain: `thefinalhour.us`
+   - Service type: `HTTP` · URL: `localhost:8080`
+5. Save and open **https://panel.thefinalhour.us**.
+
+Nothing needs to change in HomePortal. It already trusts the forwarding headers from a tunnel
+running on the same PC, so secure cookies, sign-in rate limiting and the live console all work.
+For safety, the **first admin account can still only be created at http://localhost:8080 on the
+PC itself**. Requests through the tunnel are treated as remote.
+
+### Strongly recommended: lock the panel down
+
+The panel can run commands on your PC, so add at least one of these:
+
+- **2FA**: every account → *Your account* → *Set up 2FA*.
+- **Cloudflare Access** (free for up to 50 people): Zero Trust → **Access → Applications → Add →
+  Self-hosted** → domain `panel.thefinalhour.us` → add a policy with action *Allow* and
+  *Emails* = your email and your friend's email. Cloudflare then asks for a one-time code sent to
+  that email before anyone even reaches the HomePortal sign-in page. The live console keeps working
+  behind Access.
+- Optional: if you only ever use the panel through the domain, set `"host": "127.0.0.1"` in
+  `config.json`. The panel then only answers the tunnel and this PC, not other devices on your
+  network. Skip this if you also use Tailscale or LAN access.
+
+## 3. Games: `play.thefinalhour.us`
+
+### 3a. Keep the hostname pointed at your home IP
+
+Home IPs change, so let HomePortal update the DNS record:
+
+1. Cloudflare dashboard → profile icon → **My Profile → API Tokens → Create Token** → use the
+   **Edit zone DNS** template → *Zone Resources*: Include → Specific zone → `thefinalhour.us` →
+   create, then copy the token.
+2. HomePortal → **Panel settings → Domain & dynamic DNS**:
+   - Turn on **Keep DNS records updated**
+   - Hostnames: `play.thefinalhour.us`
+   - Paste the token → **Save** → **Update now**. It should say the record was *created*.
+   - Press **Use first hostname as public address**. Every server's Overview now shows
+     `play.thefinalhour.us` as the address to share.
+
+HomePortal checks every 5 minutes and creates the record as **DNS only** (grey cloud). Leave it
+grey: if you turn the orange proxy on, games can't connect, and HomePortal switches it back off.
+
+### 3b. Forward the game ports on your router
+
+Each server's **Overview** lists its ports. Defaults:
+
+| Game | Port | Protocol |
+|---|---|---|
+| Minecraft (first server) | 25565 | TCP |
+| ARK: Survival Ascended | 7777 | UDP |
+
+In your router, forward these to your PC's LAN IP (shown in Panel settings → *This PC*). Give the PC
+a fixed/reserved LAN IP in the router so the forward keeps working. Run
+`scripts\open-firewall.ps1` as Administrator if you haven't already.
+
+**Don't forward 8080 (the panel) or the ARK RCON port (27020).** The tunnel already covers the
+panel.
+
+Check: if the public IP in *Domain & dynamic DNS* differs from the WAN IP shown in your router, your
+ISP uses CGNAT and port forwarding can't work. Use [playit.gg](https://playit.gg) for the game
+ports, or Tailscale for friends only.
+
+### 3c. Joining
+
+- **Minecraft**: add a server with address `play.thefinalhour.us`.
+- **More Minecraft servers** on other ports (25566, 25567...) can each get their own name with an
+  SRV record. In Cloudflare DNS, add a record: Type `SRV`, Name `_minecraft._tcp.mc2`, Priority `0`,
+  Weight `5`, Port `25566`, Target `play.thefinalhour.us`. Players then join `mc2.thefinalhour.us`
+  with no port.
+- **ARK: Survival Ascended**: find the server by its name in the in-game list (Unofficial), or open
+  the console with `~` and type `open play.thefinalhour.us:7777`. If the game won't resolve the
+  name, use the IP shown under *Domain & dynamic DNS*.
+- **You, on the hosting PC**: use `localhost` / `127.0.0.1`. Your own domain may not work from
+  inside your network, because many routers don't support "NAT loopback".
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `panel.thefinalhour.us` shows a Cloudflare 502/1033 error | The tunnel is running but HomePortal isn't. Start `start.bat` (or `scripts\install-autostart.ps1`) and check the tunnel shows *Healthy* |
+| Panel loads but the console never updates | Cloudflare dashboard → your domain → **Network** → make sure **WebSockets** is on (it's on by default) |
+| "Create the first admin from the host PC" | Expected. Open `http://localhost:8080` on the gaming PC once to create the admin |
+| DNS status says "No Cloudflare zone found" | The token isn't scoped to `thefinalhour.us`, or the domain isn't active on Cloudflare yet |
+| DNS says "An A, AAAA, or CNAME record with that host already exists" | Delete the old record for that name in Cloudflare (or pick another name). Don't put `panel.thefinalhour.us` in the DDNS list; the tunnel owns it |
+| Friends can't join but the hostname resolves to your IP | Port forward missing or wrong protocol (ARK needs **UDP**), Windows Firewall, or CGNAT |

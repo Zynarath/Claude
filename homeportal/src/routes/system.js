@@ -8,8 +8,8 @@ const auth = require('../auth');
 const cf = require('../services/curseforge');
 const loaders = require('../services/loaders');
 const java = require('../services/java');
+const ddns = require('../services/ddns');
 const procstats = require('../util/procstats');
-const { fetchText } = require('../util/download');
 const { HttpError } = require('../util/misc');
 
 const router = express.Router();
@@ -46,8 +46,7 @@ router.get('/system', (_req, res) => {
 });
 
 router.get('/system/public-ip', auth.requireAdmin, async (_req, res) => {
-  const ip = (await fetchText('https://api.ipify.org')).trim();
-  res.json({ ip });
+  res.json({ ip: await ddns.publicIp() });
 });
 
 router.get('/settings', auth.requireAdmin, (_req, res) => {
@@ -58,6 +57,7 @@ router.get('/settings', auth.requireAdmin, (_req, res) => {
     curseforgeKeySet: !!s.curseforgeApiKey,
     serversDir: config.serversDir,
     backupsDir: config.backupsDir,
+    ddns: ddns.publicStatus(),
   });
 });
 
@@ -68,8 +68,25 @@ router.put('/settings', auth.requireAdmin, (req, res) => {
   if (b.publicAddress !== undefined) s.publicAddress = String(b.publicAddress).trim().slice(0, 120);
   if (b.curseforgeApiKey !== undefined && b.curseforgeApiKey !== '') s.curseforgeApiKey = String(b.curseforgeApiKey).trim();
   if (b.clearCurseforgeKey) s.curseforgeApiKey = '';
+  if (b.ddns) {
+    const d = { ...(s.ddns || {}) };
+    if (b.ddns.hostnames !== undefined) d.hostnames = ddns.cleanHostnames(b.ddns.hostnames);
+    if (b.ddns.token) d.token = String(b.ddns.token).trim();
+    if (b.ddns.clearToken) d.token = '';
+    if (b.ddns.enabled !== undefined) d.enabled = !!b.ddns.enabled;
+    if (d.enabled && (!d.token || !(d.hostnames || []).length)) throw new HttpError(400, 'Dynamic DNS needs a Cloudflare API token and at least one hostname');
+    s.ddns = d;
+    ddns.reset();
+    db.saveNow();
+    ddns.start();
+  }
   db.save();
   res.json({ ok: true });
+});
+
+router.post('/settings/ddns/run', auth.requireAdmin, async (_req, res) => {
+  await ddns.runOnce({ force: true });
+  res.json(ddns.publicStatus());
 });
 
 // ---- CurseForge browsing ----

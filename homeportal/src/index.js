@@ -148,6 +148,7 @@ manager.on('removed', (id) => {
 
 // ---- start ----
 manager.init();
+require('./services/ddns').start();
 server.listen(config.port, config.host, () => {
   const proto = useHttps ? 'https' : 'http';
   log.info(`HomePortal is running at ${proto}://localhost:${config.port}`);

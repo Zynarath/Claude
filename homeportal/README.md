@@ -31,6 +31,8 @@ Eclipse Temurin). You don't need to install Java.
 - **CPU affinity and priority** per server. On a 9950X3D you can pin servers to the second CCD
   (CPUs 16–31) so the game you're playing keeps the 3D V-Cache CCD to itself
 - Clean shutdown: closing the panel saves and stops all servers first
+- Custom domain support: built-in Cloudflare dynamic DNS for game hostnames, and works behind a
+  Cloudflare Tunnel for the panel
 
 ---
 
@@ -64,6 +66,12 @@ server's Overview tab. When it's done, press **Start**.
 - *ARK game update*: **Mods** tab → *Update server* (or add an "Update" schedule).
 
 ---
+
+## Using your own domain
+
+To put the panel at `https://panel.<yourdomain>` (free HTTPS through a Cloudflare Tunnel, no
+ports opened) and give players `play.<yourdomain>`, which HomePortal keeps pointed at your home
+IP, follow **[docs/domain-setup.md](docs/domain-setup.md)**.
 
 ## Letting your friend in
 

@@ -1,0 +1,101 @@
+'use strict';
+const express = require('express');
+const os = require('os');
+const fs = require('fs');
+const db = require('../db');
+const config = require('../config');
+const auth = require('../auth');
+const cf = require('../services/curseforge');
+const loaders = require('../services/loaders');
+const java = require('../services/java');
+const procstats = require('../util/procstats');
+const { fetchText } = require('../util/download');
+const { HttpError } = require('../util/misc');
+
+const router = express.Router();
+router.use(['/system', '/settings', '/curseforge', '/minecraft'], auth.requireAuth);
+
+function disk(p) {
+  try {
+    const s = fs.statfsSync(p);
+    return { total: s.blocks * s.bsize, free: s.bavail * s.bsize };
+  } catch {
+    return null;
+  }
+}
+
+router.get('/system', (_req, res) => {
+  res.json({
+    hostname: os.hostname(),
+    platform: process.platform,
+    cpuModel: (os.cpus()[0] || {}).model || '',
+    cores: os.cpus().length,
+    cpu: procstats.systemCpu(),
+    memTotal: os.totalmem(),
+    memFree: os.freemem(),
+    uptime: os.uptime(),
+    disk: disk(config.serversDir),
+    node: process.version,
+    panelPort: config.port,
+    lanAddresses: Object.values(os.networkInterfaces())
+      .flat()
+      .filter((i) => i && i.family === 'IPv4' && !i.internal)
+      .map((i) => i.address),
+    java: java.listInstalled().map((j) => j.major),
+  });
+});
+
+router.get('/system/public-ip', auth.requireAdmin, async (_req, res) => {
+  const ip = (await fetchText('https://api.ipify.org')).trim();
+  res.json({ ip });
+});
+
+router.get('/settings', auth.requireAdmin, (_req, res) => {
+  const s = db.data.settings;
+  res.json({
+    panelName: s.panelName,
+    publicAddress: s.publicAddress,
+    curseforgeKeySet: !!s.curseforgeApiKey,
+    serversDir: config.serversDir,
+    backupsDir: config.backupsDir,
+  });
+});
+
+router.put('/settings', auth.requireAdmin, (req, res) => {
+  const b = req.body || {};
+  const s = db.data.settings;
+  if (b.panelName !== undefined) s.panelName = String(b.panelName).trim().slice(0, 40) || 'HomePortal';
+  if (b.publicAddress !== undefined) s.publicAddress = String(b.publicAddress).trim().slice(0, 120);
+  if (b.curseforgeApiKey !== undefined && b.curseforgeApiKey !== '') s.curseforgeApiKey = String(b.curseforgeApiKey).trim();
+  if (b.clearCurseforgeKey) s.curseforgeApiKey = '';
+  db.save();
+  res.json({ ok: true });
+});
+
+// ---- CurseForge browsing ----
+router.get('/curseforge/search', async (req, res) => {
+  const type = req.query.type;
+  const q = { query: req.query.q, index: Number(req.query.index) || 0, pageSize: 20 };
+  if (type === 'modpack') Object.assign(q, { gameId: cf.GAME_MINECRAFT, classId: cf.CLASS_MODPACK });
+  else if (type === 'mcmod') Object.assign(q, { gameId: cf.GAME_MINECRAFT, classId: cf.CLASS_MC_MOD, gameVersion: req.query.gameVersion, loader: req.query.loader });
+  else if (type === 'asa') Object.assign(q, { gameId: cf.GAME_ARK_ASCENDED });
+  else throw new HttpError(400, 'Unknown search type');
+  res.json(await cf.search(q));
+});
+
+router.get('/curseforge/mods/:modId/files', async (req, res) => {
+  const files = await cf.getFiles(Number(req.params.modId), { pageSize: 50, gameVersion: req.query.gameVersion, loader: req.query.loader });
+  res.json({ files: files.filter((f) => !f.isServerPack).map(cf.slimFile) });
+});
+
+// ---- Minecraft versions ----
+router.get('/minecraft/versions', async (req, res) => {
+  res.json({ versions: await loaders.listMcVersions(req.query.snapshots === '1') });
+});
+
+router.get('/minecraft/loaders/:loader', async (req, res) => {
+  if (!req.query.mc) throw new HttpError(400, 'mc is required');
+  res.json({ versions: (await loaders.listLoaderVersions(req.params.loader, String(req.query.mc))).slice(0, 80) });
+});
+
+module.exports = router;

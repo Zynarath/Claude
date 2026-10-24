@@ -15,6 +15,7 @@ router.get('/auth/state', (req, res) => {
   const s = auth.sessionFromRequest(req);
   res.json({
     panelName: db.data.settings.panelName,
+    version: require('../../package.json').version,
     setupRequired: db.data.users.length === 0,
     setupAllowedHere: isLoopback(req),
     user: s ? auth.publicUser(s.user) : null,

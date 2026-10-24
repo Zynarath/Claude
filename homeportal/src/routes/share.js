@@ -16,7 +16,10 @@ const { HttpError } = require('../util/misc');
 
 const publicRouter = express.Router();
 
-publicRouter.get('/', (_req, res) => res.sendFile(path.join(config.root, 'public', 'share.html')));
+publicRouter.get('/', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  res.sendFile(path.join(config.root, 'public', 'share.html'));
+});
 
 publicRouter.get('/api/whoami', (req, res) => {
   const s = share.settings();

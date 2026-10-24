@@ -9,7 +9,11 @@ import * as settings from './views/settings.js';
 import * as account from './views/account.js';
 import * as fileshare from './views/fileshare.js';
 
-export const state = { user: null, panelName: 'HomePortal', servers: [] };
+// Bump together with package.json "version". If the server is newer than this page, the browser
+// (or Cloudflare) is showing an old cached copy and the user is asked to reload.
+const PAGE_VERSION = '1.5.0';
+
+export const state = { user: null, panelName: 'HomePortal', servers: [], version: PAGE_VERSION };
 
 const routes = [
   { re: /^\/?$/, view: dashboard },
@@ -70,7 +74,7 @@ function shell() {
             : ''}
         </nav>
         <div class="sidebar-foot">
-          <a href="#/account" class="me" data-nav="/account">${icon('user')}<span>${state.user.username}</span><small>${state.user.role}</small></a>
+          <a href="#/account" class="me" data-nav="/account">${icon('user')}<span>${state.user.username}</span><small>${state.user.role} · v${PAGE_VERSION}</small></a>
           <button class="icon-btn" id="logout" title="Sign out" aria-label="Sign out">${icon('logout')}</button>
         </div>
       </aside>
@@ -160,6 +164,16 @@ async function boot() {
     return;
   }
   state.panelName = auth.panelName || 'HomePortal';
+  if (auth.version && auth.version !== PAGE_VERSION) {
+    // Old cached page: reload once with a cache-busting URL, then tell the user if it persists.
+    const key = 'hp-reloaded-for';
+    if (sessionStorage.getItem(key) !== auth.version) {
+      sessionStorage.setItem(key, auth.version);
+      location.replace(`${location.pathname}?v=${encodeURIComponent(auth.version)}${location.hash}`);
+      return;
+    }
+    toast(`The panel was updated to v${auth.version} but your browser is still showing an old copy. Press Ctrl+F5 (and purge Cloudflare's cache if you use your domain).`, 'warn', 20000);
+  }
   document.title = state.panelName;
   if (!auth.user) {
     login.render($('#app'), { auth, onLogin: (user) => { state.user = user; boot(); } });

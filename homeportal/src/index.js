@@ -39,8 +39,14 @@ app.use('/api', require('./routes/share').adminRouter);
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
 
 app.use('/share', require('./routes/share').publicRouter);
-app.use(express.static(path.join(config.root, 'public'), { index: 'index.html', maxAge: 0 }));
-app.get('/{*splat}', (_req, res) => res.sendFile(path.join(config.root, 'public', 'index.html')));
+// Never let browsers or Cloudflare keep old copies of the panel's files: after an update the
+// page must load the new scripts, or new features (and fixes) silently don't show up.
+const noStore = (res) => res.setHeader('Cache-Control', 'no-store, max-age=0');
+app.use(express.static(path.join(config.root, 'public'), { index: 'index.html', etag: false, lastModified: false, setHeaders: noStore }));
+app.get('/{*splat}', (_req, res) => {
+  noStore(res);
+  res.sendFile(path.join(config.root, 'public', 'index.html'));
+});
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _next) => {

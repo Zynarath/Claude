@@ -382,9 +382,9 @@ const cod = {
       {
         title: 'Advanced',
         fields: [
-          { key: 'cod.gameDir', label: 'Game folder', type: 'text', hint: t.gameHint },
-          ...(t.pluto ? [{ key: 'cod.plutoKey', label: 'Plutonium server key', type: 'text', hint: 'Free: sign in at platform.plutonium.pw → Server Keys → create one.' }] : []),
-          { key: 'cod.extraConfig', label: 'Extra config lines', type: 'textarea', hint: 'Added to the generated config, e.g. set scr_dom_scorelimit 300' },
+          { key: 'cod.gameDir', label: 'Game folder', type: 'text', admin: true, hint: t.gameHint },
+          ...(t.pluto ? [{ key: 'cod.plutoKey', label: 'Plutonium server key', type: 'text', admin: true, hint: 'Free: sign in at platform.plutonium.pw → Server Keys → create one.' }] : []),
+          { key: 'cod.extraConfig', label: 'Extra config lines', type: 'textarea', admin: true, hint: 'Admin only. Added to the generated config, e.g. set scr_dom_scorelimit 300' },
         ],
       },
     ];
@@ -413,7 +413,7 @@ const cod = {
     };
   },
 
-  writeSettings(server, v) {
+  writeSettings(server, v, opts = {}) {
     const c = server.cod;
     const t = title(server);
     const num = (x, min, max, def) => Math.max(min, Math.min(max, Number.isFinite(Number(x)) && x !== '' ? Number(x) : def));
@@ -435,9 +435,15 @@ const cod = {
     if ('cod.bots.fill' in v) c.bots.fill = num(v['cod.bots.fill'], 0, 64, 12);
     if ('cod.bots.skill' in v && skillsFor(c.title).options.some((o) => o[0] === String(v['cod.bots.skill']))) c.bots.skill = String(v['cod.bots.skill']);
     if ('cod.bots.kick' in v) c.bots.kick = !!v['cod.bots.kick'];
-    if ('cod.gameDir' in v) c.gameDir = String(v['cod.gameDir'] || '').trim();
-    if ('cod.plutoKey' in v) c.plutoKey = String(v['cod.plutoKey'] || '').trim();
-    if ('cod.extraConfig' in v) c.extraConfig = String(v['cod.extraConfig'] || '').slice(0, 20000);
+    // The game folder decides which executable the panel launches, the Plutonium key authenticates
+    // it, and extra config is free text written into the server config — all admin only.
+    if ('cod.gameDir' in v && opts.admin) {
+      const dir = String(v['cod.gameDir'] || '').trim();
+      if (dir && (dir.startsWith('\\\\') || dir.startsWith('//'))) throw new HttpError(400, 'Network paths (\\\\server\\share) are not allowed for the game folder.');
+      c.gameDir = dir;
+    }
+    if ('cod.plutoKey' in v && opts.admin) c.plutoKey = String(v['cod.plutoKey'] || '').trim();
+    if ('cod.extraConfig' in v && opts.admin) c.extraConfig = String(v['cod.extraConfig'] || '').slice(0, 20000);
     return { restartRequired: true };
   },
 };

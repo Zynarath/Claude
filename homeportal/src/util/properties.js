@@ -19,7 +19,7 @@ class Properties {
   }
 
   set(key, value) {
-    const v = value === undefined || value === null ? '' : String(value).replace(/\r?\n/g, ' ');
+    const v = value === undefined || value === null ? '' : String(value).replace(/[\r\n]+/g, ' ');
     const l = this.lines.find((x) => x.key === key);
     if (l) l.value = v;
     else this.lines.push({ key, value: v });

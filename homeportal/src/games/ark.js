@@ -68,7 +68,7 @@ const LAUNCH_FIELDS = [
   { key: 'launch.pcOnly', label: 'PC players only (disable crossplay)', type: 'bool', group: 'Launch', hint: 'ARK: Survival Ascended only' },
   { key: 'launch.clusterId', label: 'Cluster ID (servers with the same ID allow transfers)', type: 'text', group: 'Launch' },
   { key: 'launch.showConsole', label: 'Open ARK console window (-log)', type: 'bool', group: 'Launch' },
-  { key: 'launch.extraArgs', label: 'Extra command-line arguments', type: 'text', group: 'Launch', hint: 'e.g. -ForceAllowCaveFlyers -NoTransferFromFiltering' },
+  { key: 'launch.extraArgs', label: 'Extra command-line arguments', type: 'text', group: 'Launch', admin: true, hint: 'Admin only — e.g. -ForceAllowCaveFlyers -NoTransferFromFiltering' },
 ];
 
 function edition(server) {
@@ -283,7 +283,7 @@ const ark = {
     const groups = new Map();
     for (const f of [...LAUNCH_FIELDS, ...FIELDS]) {
       if (!groups.has(f.group)) groups.set(f.group, []);
-      const field = { key: f.file ? 'ini.' + f.key : f.key, label: f.label, type: f.type, step: f.step, hint: f.hint };
+      const field = { key: f.file ? 'ini.' + f.key : f.key, label: f.label, type: f.type, step: f.step, hint: f.hint, admin: f.admin };
       if (f.key === 'launch.map') field.options = edition(server).maps;
       groups.get(f.group).push(field);
     }
@@ -308,14 +308,16 @@ const ark = {
     return out;
   },
 
-  writeSettings(server, values) {
+  writeSettings(server, values, opts = {}) {
     const a = server.ark;
     for (const [k, v] of Object.entries(values)) {
       if (k.startsWith('launch.')) {
         const key = k.slice(7);
         if (['maxPlayers', 'port', 'queryPort', 'rconPort'].includes(key)) a[key] = Number(v) || a[key];
         else if (['battleye', 'pcOnly', 'showConsole'].includes(key)) a[key] = !!v;
-        else if (['map', 'clusterId', 'extraArgs'].includes(key)) a[key] = String(v || '').trim();
+        else if (['map', 'clusterId'].includes(key)) a[key] = String(v || '').trim();
+        // extraArgs becomes the server's command line, so admin only.
+        else if (key === 'extraArgs' && opts.admin) a[key] = String(v || '').trim();
       } else if (k.startsWith('ini.')) {
         const f = FIELDS.find((x) => x.key === k.slice(4));
         if (!f) continue;

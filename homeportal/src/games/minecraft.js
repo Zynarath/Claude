@@ -202,7 +202,7 @@ const minecraft = {
             { key: 'panel.memoryMb', label: 'Memory (MB)', type: 'number', min: 1024, step: 512, hint: 'Modded packs usually want 6144–12288 MB.' },
             { key: 'panel.port', label: 'Port', type: 'number' },
             { key: 'panel.aikarFlags', label: "Use Aikar's GC flags", type: 'bool' },
-            { key: 'panel.jvmArgs', label: 'Extra JVM arguments', type: 'text' },
+            { key: 'panel.jvmArgs', label: 'Extra JVM arguments', type: 'text', admin: true, hint: 'Admin only — goes on the Java command line.' },
             { key: 'panel.javaMajor', label: 'Java version', type: 'select', options: ['8', '11', '17', '21', '25'], hint: 'Picked automatically from the Minecraft version. Downloaded on demand.' },
           ],
         },
@@ -227,12 +227,14 @@ const minecraft = {
     return out;
   },
 
-  writeSettings(server, values) {
+  writeSettings(server, values, opts = {}) {
     const mc = server.mc;
     if ('panel.memoryMb' in values) mc.memoryMb = Math.max(512, Number(values['panel.memoryMb']) || mc.memoryMb);
     if ('panel.port' in values) mc.port = Number(values['panel.port']) || mc.port;
     if ('panel.aikarFlags' in values) mc.aikarFlags = !!values['panel.aikarFlags'];
-    if ('panel.jvmArgs' in values) mc.jvmArgs = String(values['panel.jvmArgs'] || '');
+    // Extra JVM arguments land on the java command line (-javaagent, -XX:OnOutOfMemoryError=…,
+    // a replacement -jar, @argfiles), so only an admin may set them.
+    if ('panel.jvmArgs' in values && opts.admin) mc.jvmArgs = String(values['panel.jvmArgs'] || '');
     if ('panel.javaMajor' in values && values['panel.javaMajor']) mc.javaMajor = Number(values['panel.javaMajor']);
     const props = readProps(server);
     for (const f of PROPERTY_FIELDS) {

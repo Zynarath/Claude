@@ -181,7 +181,9 @@ router.put('/servers/:id/settings', (req, res) => {
   const inst = load(req, 'settings');
   const key = CONFIG_KEY[inst.server.game];
   const before = JSON.stringify(inst.server[key]);
-  const result = inst.game.writeSettings(inst.server, (req.body && req.body.values) || {});
+  // Some fields put text onto the process command line or pick which executable to run, so a
+  // "settings" friend changing them could run code as the host. Those are admin-only.
+  const result = inst.game.writeSettings(inst.server, (req.body && req.body.values) || {}, { admin: req.user.role === 'admin' });
   try {
     manager.checkPortConflicts(inst.server);
   } catch (err) {
@@ -307,12 +309,20 @@ router.delete('/servers/:id/backups/:name', (req, res) => {
 
 // ---- schedules ----
 const ACTIONS = ['restart', 'start', 'stop', 'backup', 'command', 'update'];
-function cleanSchedule(b, existing = {}) {
+// A schedule runs a privileged action on a timer, so the creator must actually hold the matching
+// permission — otherwise "schedules" alone would let a friend send console commands or power the
+// server, which the console/control permissions are meant to gate.
+const ACTION_PERM = { restart: 'control', start: 'control', stop: 'control', backup: 'backups', command: 'console', update: 'mods' };
+function cleanSchedule(b, existing, req, inst) {
   const s = { ...existing };
   s.name = String(b.name ?? s.name ?? '').slice(0, 60);
   s.enabled = b.enabled !== undefined ? !!b.enabled : s.enabled ?? true;
   s.action = ACTIONS.includes(b.action) ? b.action : s.action;
   if (!s.action) throw new HttpError(400, 'Pick an action');
+  if (!auth.can(req.user, inst.server, ACTION_PERM[s.action])) {
+    throw new HttpError(403, `This action also needs the "${auth.PERM_LABELS[ACTION_PERM[s.action]]}" permission.`);
+  }
+  s.createdBy = existing.createdBy || req.user.id;
   s.type = b.type === 'interval' ? 'interval' : 'daily';
   if (s.type === 'interval') s.everyMinutes = Math.max(5, Number(b.everyMinutes) || 60);
   else {
@@ -333,7 +343,7 @@ router.get('/servers/:id/schedules', (req, res) => {
 
 router.post('/servers/:id/schedules', (req, res) => {
   const inst = load(req, 'schedules');
-  const s = cleanSchedule(req.body || {}, { id: randomId(4), createdAt: Date.now() });
+  const s = cleanSchedule(req.body || {}, { id: randomId(4), createdAt: Date.now() }, req, inst);
   inst.server.schedules = [...(inst.server.schedules || []), s];
   db.save();
   res.json({ schedule: withNext(s) });
@@ -343,7 +353,7 @@ router.put('/servers/:id/schedules/:sid', (req, res) => {
   const inst = load(req, 'schedules');
   const idx = (inst.server.schedules || []).findIndex((x) => x.id === req.params.sid);
   if (idx === -1) throw new HttpError(404, 'Schedule not found');
-  inst.server.schedules[idx] = cleanSchedule(req.body || {}, inst.server.schedules[idx]);
+  inst.server.schedules[idx] = cleanSchedule(req.body || {}, inst.server.schedules[idx], req, inst);
   db.save();
   res.json({ schedule: withNext(inst.server.schedules[idx]) });
 });

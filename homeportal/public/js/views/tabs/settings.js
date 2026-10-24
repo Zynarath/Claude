@@ -62,7 +62,10 @@ export async function render(root, { server, can, refresh, navigate, refreshServ
     <form id="game" class="panel">
       <h3>Game settings</h3>
       ${schema.note ? html`<p class="muted small">${schema.note}</p>` : ''}
-      ${schema.sections.map((sec) => html`<fieldset><legend>${sec.title}</legend><div class="form-grid">${sec.fields.map((f) => field(f, values[f.key]))}</div></fieldset>`)}
+      ${schema.sections.map((sec) => {
+        const fields = sec.fields.filter((f) => admin || !f.admin); // admin-only fields are enforced on the server too
+        return fields.length ? html`<fieldset><legend>${sec.title}</legend><div class="form-grid">${fields.map((f) => field(f, values[f.key]))}</div></fieldset>` : '';
+      })}
       <div class="form-actions sticky"><button class="btn btn-primary">Save game settings</button><span class="muted small">Changes apply on the next (re)start.</span></div>
     </form>
 

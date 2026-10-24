@@ -57,8 +57,10 @@ class Ini {
       if (line) s.lines = s.lines.filter((l) => l !== line);
       return;
     }
-    if (line) line.value = String(value);
-    else s.lines.push({ key, value: String(value) });
+    // Strip newlines so a value can't inject extra INI lines/sections.
+    const clean = String(value).replace(/[\r\n]+/g, ' ');
+    if (line) line.value = clean;
+    else s.lines.push({ key, value: clean });
   }
 
   toString() {

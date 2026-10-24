@@ -10,7 +10,7 @@ const PERM_LABELS = {
   control: 'Start / stop / restart',
   console: 'View console & send commands',
   settings: 'Change settings',
-  files: 'File manager',
+  files: 'File manager (high trust — can change what the server runs)',
   mods: 'Install & update mods / modpacks',
   backups: 'Create & restore backups',
   schedules: 'Manage schedules',

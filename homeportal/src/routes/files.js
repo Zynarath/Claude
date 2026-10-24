@@ -16,13 +16,27 @@ function ctx(req) {
   const inst = manager.get(req.params.id);
   if (!auth.can(req.user, inst.server, 'files')) throw new HttpError(403, "You don't have file access on this server");
   fs.mkdirSync(inst.server.dir, { recursive: true });
-  return { inst, root: inst.server.dir };
+  return { inst, root: inst.server.dir, admin: req.user.role === 'admin' };
 }
 
 function cleanName(name) {
   const n = String(name || '').trim();
   if (!n || n === '.' || n === '..' || /[\\/:*?"<>|\x00-\x1f]/.test(n)) throw new HttpError(400, `Invalid file name "${n}"`);
   return n;
+}
+
+// Files a non-admin must not create or overwrite through the file manager: native executables,
+// scripts, and launch-argument files that the panel or the OS could later run as the host account.
+// (.jar stays allowed because mods are .jar; that is the mods workflow, gated by its own permission.)
+const BLOCKED_EXT = /\.(exe|dll|so|dylib|bat|cmd|com|scr|msi|ps1|psm1|vbs|vbe|wsf|jse|hta|cpl|sh|bash)$/i;
+const BLOCKED_NAME = /^user_jvm_args\.txt$/i;
+function blockedForNonAdmin(name) {
+  return BLOCKED_EXT.test(name) || BLOCKED_NAME.test(name);
+}
+function guardWrite(abs, admin) {
+  if (admin) return;
+  const name = path.basename(abs);
+  if (blockedForNonAdmin(name)) throw new HttpError(403, `Only an admin can create or change "${name}" (it could run code on the host).`);
 }
 
 router.use('/servers/:id/files', auth.requireAuth);
@@ -53,8 +67,9 @@ router.get('/servers/:id/files/read', (req, res) => {
 });
 
 router.put('/servers/:id/files/write', (req, res) => {
-  const { inst, root } = ctx(req);
+  const { inst, root, admin } = ctx(req);
   const file = safeResolve(root, req.query.path);
+  guardWrite(file, admin);
   if (typeof req.body.content !== 'string') throw new HttpError(400, 'Missing content');
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, req.body.content);
@@ -70,9 +85,10 @@ router.post('/servers/:id/files/mkdir', (req, res) => {
 });
 
 router.post('/servers/:id/files/rename', (req, res) => {
-  const { root } = ctx(req);
+  const { root, admin } = ctx(req);
   const from = safeResolve(root, req.body.from);
   const to = safeResolve(root, path.posix.join(path.posix.dirname(String(req.body.from).replace(/\\/g, '/')), cleanName(req.body.name)));
+  guardWrite(to, admin); // can't rename something into an executable name
   if (from === path.resolve(root)) throw new HttpError(400, "Can't rename the server folder");
   if (fs.existsSync(to)) throw new HttpError(400, 'Something with that name already exists');
   fs.renameSync(from, to);
@@ -93,13 +109,14 @@ router.post('/servers/:id/files/delete', (req, res) => {
 
 // Raw upload: PUT body is the file contents.
 router.put('/servers/:id/files/upload', async (req, res) => {
-  const { inst, root } = ctx(req);
+  const { inst, root, admin } = ctx(req);
   const dir = safeResolve(root, req.query.path);
   const rel = String(req.query.name || '').replace(/\\/g, '/');
   // Allow "folder/sub/file.txt" from folder uploads, but validate every segment.
   const parts = rel.split('/').filter(Boolean).map(cleanName);
   if (!parts.length) throw new HttpError(400, 'Missing file name');
   const target = safeResolve(root, path.posix.join(relTo(root, dir), ...parts));
+  guardWrite(target, admin);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   const tmp = target + '.uploading';
   try {
@@ -128,11 +145,13 @@ router.get('/servers/:id/files/download', (req, res) => {
 });
 
 router.post('/servers/:id/files/extract', async (req, res) => {
-  const { inst, root } = ctx(req);
+  const { inst, root, admin } = ctx(req);
   const file = safeResolve(root, req.body.path);
   if (!/\.zip$/i.test(file) || !fs.existsSync(file)) throw new HttpError(400, 'Only .zip files can be extracted');
   const dest = path.dirname(file);
-  const written = await extractZip(file, dest);
+  // A non-admin can't smuggle an executable past guardWrite inside a zip.
+  const filter = admin ? undefined : (rel) => !blockedForNonAdmin(path.basename(rel));
+  const written = await extractZip(file, dest, { filter });
   inst.appendConsole(`[files] ${req.user.username} extracted ${relTo(root, file)} (${written.length} files)`);
   res.json({ ok: true, files: written.length });
 });

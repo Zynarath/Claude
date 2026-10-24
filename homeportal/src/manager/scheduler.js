@@ -2,9 +2,22 @@
 // Per-server scheduled tasks: restarts, backups, commands, updates.
 const logger = require('../util/log');
 const db = require('../db');
+const auth = require('../auth');
 
 const log = logger('scheduler');
 const pendingWarnings = new Map();
+
+// Permission a schedule's creator must still hold for it to fire (kept in sync with routes).
+const ACTION_PERM = { restart: 'control', start: 'control', stop: 'control', backup: 'backups', command: 'console', update: 'mods' };
+
+// A non-admin creator who has since lost the permission (or been removed/disabled) must not keep
+// running a privileged schedule. Admin-created schedules have no createdBy requirement.
+function creatorAllowed(server, s) {
+  if (!s.createdBy) return true; // legacy schedules created before this check (admins only in practice)
+  const user = db.data.users.find((u) => u.id === s.createdBy);
+  if (!user || user.disabled) return false;
+  return auth.can(user, server, ACTION_PERM[s.action]);
+}
 
 // Most recent time <= now that a "daily/weekly" schedule should have fired.
 function lastOccurrence(s, now) {
@@ -68,6 +81,10 @@ async function execute(manager, inst, s) {
 async function run(manager, inst, s) {
   s.lastRun = Date.now();
   db.save();
+  if (!creatorAllowed(inst.server, s)) {
+    inst.appendConsole(`[schedule] Skipping "${s.name || s.action}": the user who created it no longer has permission.`);
+    return;
+  }
   const warn = Number(s.warnMinutes) || 0;
   const disruptive = ['restart', 'stop', 'update'].includes(s.action);
   if (disruptive && warn > 0 && inst.status === 'running' && inst.game.broadcastCommand) {

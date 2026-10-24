@@ -9,7 +9,6 @@ const fs = require('fs');
 const path = require('path');
 const net = require('net');
 const { spawn } = require('child_process');
-const mysql = require('mysql2/promise');
 const db = require('../db');
 const { Conf, parseDbInfo } = require('../util/conf');
 const { findFiles } = require('../util/paths');
@@ -101,6 +100,7 @@ function dbInfo(server, which) {
 }
 
 async function query(server, which, sql, params = []) {
+  const mysql = require('mysql2/promise'); // loaded on first use so a missing package can't stop the panel
   const info = dbInfo(server, which);
   const conn = await mysql.createConnection({ ...info, connectTimeout: 4000 });
   try {

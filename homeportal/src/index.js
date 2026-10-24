@@ -1,4 +1,5 @@
 'use strict';
+require('./checkDeps'); // must stay first: installs packages added by updates
 const http = require('http');
 const https = require('https');
 const fs = require('fs');

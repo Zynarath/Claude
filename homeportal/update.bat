@@ -13,11 +13,21 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo Downloading the latest version...
-git pull --ff-only
+rem Update to whatever branch this folder was cloned on (e.g. HomePanel), from its own remote.
+for /f "delims=" %%b in ('git rev-parse --abbrev-ref HEAD') do set BRANCH=%%b
+echo Downloading the latest version of branch "%BRANCH%"...
+git fetch origin %BRANCH%
 if errorlevel 1 (
   echo.
-  echo Update failed. If you edited files in this folder, Git won't overwrite them - see the message above.
+  echo Download failed - see the message above. If it asks for a password, your repo is private:
+  echo make it public on GitHub, or use a Personal Access Token (github.com/settings/tokens).
+  pause
+  exit /b 1
+)
+rem Match the remote exactly. Your data folder and config.json are untracked, so they are kept.
+git reset --hard FETCH_HEAD
+if errorlevel 1 (
+  echo Update failed - see the message above.
   pause
   exit /b 1
 )

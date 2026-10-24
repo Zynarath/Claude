@@ -1,11 +1,11 @@
-# Using your own domain (thefinalhour.us)
+# Using your own domain (example.com)
 
 When you're done:
 
 | Address | Goes to | How |
 |---|---|---|
-| `https://panel.thefinalhour.us` | The HomePortal panel | Cloudflare Tunnel: free HTTPS, no router ports opened, your home IP stays hidden |
-| `play.thefinalhour.us` | Your game servers | A DNS record HomePortal keeps updated with your home IP, plus router port forwarding |
+| `https://panel.example.com` | The HomePortal panel | Cloudflare Tunnel: free HTTPS, no router ports opened, your home IP stays hidden |
+| `play.example.com` | Your game servers | A DNS record HomePortal keeps updated with your home IP, plus router port forwarding |
 
 The panel and the games need different setups. Cloudflare can proxy and tunnel websites for free,
 but it can't carry game traffic (Minecraft TCP or ARK UDP) on the free plan. So the game hostname
@@ -18,10 +18,10 @@ Everything below is free. It assumes HomePortal is already installed and working
 
 ## 1. Move the domain's DNS to Cloudflare (one time, ~15 minutes)
 
-You keep your registrar (wherever you bought `thefinalhour.us`). Only the DNS moves.
+You keep your registrar (wherever you bought `example.com`). Only the DNS moves.
 
 1. Make a free account at <https://dash.cloudflare.com/sign-up>.
-2. **Add a domain** → `thefinalhour.us` → pick the **Free** plan.
+2. **Add a domain** → `example.com` → pick the **Free** plan.
 3. Cloudflare scans your existing DNS records. If the domain already has a website or **email**
    (MX records), check those records appear in the list before continuing, so nothing breaks.
 4. Cloudflare shows two nameservers, like `xxx.ns.cloudflare.com`. At your registrar, replace the
@@ -29,7 +29,7 @@ You keep your registrar (wherever you bought `thefinalhour.us`). Only the DNS mo
 5. Wait until Cloudflare emails that the domain is **Active**. This usually takes minutes, but
    can take up to 24 hours.
 
-## 2. Panel: `panel.thefinalhour.us` through a Cloudflare Tunnel
+## 2. Panel: `panel.example.com` through a Cloudflare Tunnel
 
 The tunnel is a small program (`cloudflared`) running on your PC. It makes an outgoing connection
 to Cloudflare, so you don't open any port for the panel.
@@ -45,9 +45,9 @@ to Cloudflare, so you don't open any port for the panel.
    This installs `cloudflared` as a Windows service that starts with your PC. You can also just
    paste the command Cloudflare shows.
 4. Back in the dashboard, add a **public hostname** (also called a published application route):
-   - Subdomain: `panel` · Domain: `thefinalhour.us`
+   - Subdomain: `panel` · Domain: `example.com`
    - Service type: `HTTP` · URL: `localhost:8080`
-5. Save and open **https://panel.thefinalhour.us**.
+5. Save and open **https://panel.example.com**.
 
 Nothing needs to change in HomePortal. It already trusts the forwarding headers from a tunnel
 running on the same PC, so secure cookies, sign-in rate limiting and the live console all work.
@@ -60,7 +60,7 @@ The panel can run commands on your PC, so only you two should be able to reach i
 
 - **2FA**: every account → *Your account* → *Set up 2FA*.
 - **Cloudflare Access** (free for up to 50 people): Zero Trust → **Access → Applications → Add →
-  Self-hosted** → domain `panel.thefinalhour.us` → add a policy with action *Allow* and
+  Self-hosted** → domain `panel.example.com` → add a policy with action *Allow* and
   *Include → Emails* = **your email and your friend's email only**. Everyone else is stopped by
   Cloudflare before they ever see the HomePortal sign-in page. You two get a one-time code by
   email (session length is configurable, e.g. 1 month). The live console keeps working behind
@@ -71,7 +71,7 @@ The panel can run commands on your PC, so only you two should be able to reach i
   `config.json`. The panel then only answers the tunnel and this PC, not other devices on your
   network. Skip this if you also use Tailscale or LAN access.
 
-## 3. Games: `play.thefinalhour.us`
+## 3. Games: `play.example.com`
 
 Your friend group joins the games directly (not through the panel), so keep the servers private
 the way each game supports:
@@ -86,14 +86,14 @@ the way each game supports:
 Home IPs change, so let HomePortal update the DNS record:
 
 1. Cloudflare dashboard → profile icon → **My Profile → API Tokens → Create Token** → use the
-   **Edit zone DNS** template → *Zone Resources*: Include → Specific zone → `thefinalhour.us` →
+   **Edit zone DNS** template → *Zone Resources*: Include → Specific zone → `example.com` →
    create, then copy the token.
 2. HomePortal → **Panel settings → Domain & dynamic DNS**:
    - Turn on **Keep DNS records updated**
-   - Hostnames: `play.thefinalhour.us`
+   - Hostnames: `play.example.com`
    - Paste the token → **Save** → **Update now**. It should say the record was *created*.
    - Press **Use first hostname as public address**. Every server's Overview now shows
-     `play.thefinalhour.us` as the address to share.
+     `play.example.com` as the address to share.
 
 HomePortal checks every 5 minutes and creates the record as **DNS only** (grey cloud). Leave it
 grey: if you turn the orange proxy on, games can't connect, and HomePortal switches it back off.
@@ -120,13 +120,13 @@ ports, or Tailscale for friends only.
 
 ### 3c. Joining
 
-- **Minecraft**: add a server with address `play.thefinalhour.us`.
+- **Minecraft**: add a server with address `play.example.com`.
 - **More Minecraft servers** on other ports (25566, 25567...) can each get their own name with an
   SRV record. In Cloudflare DNS, add a record: Type `SRV`, Name `_minecraft._tcp.mc2`, Priority `0`,
-  Weight `5`, Port `25566`, Target `play.thefinalhour.us`. Players then join `mc2.thefinalhour.us`
+  Weight `5`, Port `25566`, Target `play.example.com`. Players then join `mc2.example.com`
   with no port.
 - **ARK: Survival Ascended**: find the server by its name in the in-game list (Unofficial), or open
-  the console with `~` and type `open play.thefinalhour.us:7777`. If the game won't resolve the
+  the console with `~` and type `open play.example.com:7777`. If the game won't resolve the
   name, use the IP shown under *Domain & dynamic DNS*.
 - **You, on the hosting PC**: use `localhost` / `127.0.0.1`. Your own domain may not work from
   inside your network, because many routers don't support "NAT loopback".
@@ -135,9 +135,9 @@ ports, or Tailscale for friends only.
 
 | Symptom | Fix |
 |---|---|
-| `panel.thefinalhour.us` shows a Cloudflare 502/1033 error | The tunnel is running but HomePortal isn't. Start `start.bat` (or `scripts\install-autostart.ps1`) and check the tunnel shows *Healthy* |
+| `panel.example.com` shows a Cloudflare 502/1033 error | The tunnel is running but HomePortal isn't. Start `start.bat` (or `scripts\install-autostart.ps1`) and check the tunnel shows *Healthy* |
 | Panel loads but the console never updates | Cloudflare dashboard → your domain → **Network** → make sure **WebSockets** is on (it's on by default) |
 | "Create the first admin from the host PC" | Expected. Open `http://localhost:8080` on the gaming PC once to create the admin |
-| DNS status says "No Cloudflare zone found" | The token isn't scoped to `thefinalhour.us`, or the domain isn't active on Cloudflare yet |
-| DNS says "An A, AAAA, or CNAME record with that host already exists" | Delete the old record for that name in Cloudflare (or pick another name). Don't put `panel.thefinalhour.us` in the DDNS list; the tunnel owns it |
+| DNS status says "No Cloudflare zone found" | The token isn't scoped to `example.com`, or the domain isn't active on Cloudflare yet |
+| DNS says "An A, AAAA, or CNAME record with that host already exists" | Delete the old record for that name in Cloudflare (or pick another name). Don't put `panel.example.com` in the DDNS list; the tunnel owns it |
 | Friends can't join but the hostname resolves to your IP | Port forward missing or wrong protocol (ARK needs **UDP**), Windows Firewall, or CGNAT |

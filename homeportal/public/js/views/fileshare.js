@@ -18,7 +18,7 @@ export async function render(root) {
             <small class="hint">Everything inside this folder (and its subfolders) can be downloaded by allowed IPs.</small></label>
           <label class="field"><span>Page title</span><input name="title" value="${s.title}" maxlength="60"></label>
           <label class="field"><span>Own port for the file share (optional)</span><input name="port" type="number" min="1024" max="65535" value="${s.port || ''}" placeholder="e.g. 8090">
-            <small class="hint">Serves only the file share, never the panel. Port-forward this (TCP) or point a tunnel hostname like files.thefinalhour.us at it.</small></label>
+            <small class="hint">Serves only the file share, never the panel. Port-forward this (TCP) or point a tunnel hostname like files.example.com at it.</small></label>
           <label class="switch field-switch span-2"><input type="checkbox" name="lanAccess" ${s.lanAccess ? 'checked' : ''}><span></span>Also let devices on my home network upload and download
             <small class="hint">Off = uploading only works from this PC.</small></label>
         </div>
@@ -28,7 +28,7 @@ export async function render(root) {
       ${s.enabled && s.folder
         ? html`<div class="panel"><h3>Links to send your friends</h3>
             ${portLink ? html`<div class="address"><code>${portLink}</code><button type="button" class="btn btn-sm" data-copy="${portLink}">${icon('copy')}Copy</button></div>
-              <p class="muted small">Replace <code>${location.hostname}</code> with your public address (e.g. play.thefinalhour.us) and forward TCP port ${s.port}, or use a tunnel hostname.</p>` : ''}
+              <p class="muted small">Replace <code>${location.hostname}</code> with your public address (e.g. play.example.com) and forward TCP port ${s.port}, or use a tunnel hostname.</p>` : ''}
             <div class="address"><code>${panelLink}</code><button type="button" class="btn btn-sm" data-copy="${panelLink}">${icon('copy')}Copy</button></div>
             <p class="muted small">Same page on the panel's address. If the panel is behind Cloudflare Access, friends must pass Access first — the separate port above avoids that.</p></div>`
         : ''}

@@ -78,7 +78,7 @@ test('setup overview, per-server channels and event messages', async () => {
   assert.equal(o.suggestedUpdatesChannelId, '200');
 
   Object.assign(db.data.settings.discord, { enabled: true, guildId: '1', updatesChannelId: '200', playerEvents: true });
-  db.data.settings.publicAddress = 'play.thefinalhour.us';
+  db.data.settings.publicAddress = 'play.example.com';
 
   const server = {
     id: 's1', name: 'Ark SE Server 1', game: 'ark', autoRestart: true,
@@ -97,7 +97,7 @@ test('setup overview, per-server channels and event messages', async () => {
   const online = messages.filter((m) => m.embeds[0].title.includes('is online'));
   assert.deepEqual(online.map((m) => m.channel).sort(), ['200', created.id].sort());
   const fields = online[0].embeds[0].fields;
-  assert.ok(fields.some((f) => f.value === '`play.thefinalhour.us:7777`'));
+  assert.ok(fields.some((f) => f.value === '`play.example.com:7777`'));
   assert.ok(fields.some((f) => f.name === 'Password' && !f.value.includes('rex-1234')), 'password hidden unless enabled');
 
   // Player joins go to the server channel only; the first sample is just a baseline.

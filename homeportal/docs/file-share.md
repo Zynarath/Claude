@@ -36,9 +36,9 @@ Pick one:
 
 | Option | Link | Setup |
 |---|---|---|
-| **Port forward the share port** (best for big files) | `http://play.thefinalhour.us:8090/share` | Forward **TCP 8090** on your router to this PC, and allow it in Windows Firewall |
-| **Cloudflare Tunnel hostname** | `https://files.thefinalhour.us/share` | In your tunnel, add a public hostname `files` → `HTTP` → `localhost:8090`. HTTPS, no port forward. Cloudflare's terms discourage serving lots of very large files through it, so for multi-GB downloads the port forward is the safer choice |
-| **Panel address** | `https://panel.thefinalhour.us/share` | Works out of the box, but if the panel is behind Cloudflare Access, friends must pass Access first |
+| **Port forward the share port** (best for big files) | `http://play.example.com:8090/share` | Forward **TCP 8090** on your router to this PC, and allow it in Windows Firewall |
+| **Cloudflare Tunnel hostname** | `https://files.example.com/share` | In your tunnel, add a public hostname `files` → `HTTP` → `localhost:8090`. HTTPS, no port forward. Cloudflare's terms discourage serving lots of very large files through it, so for multi-GB downloads the port forward is the safer choice |
+| **Panel address** | `https://panel.example.com/share` | Works out of the box, but if the panel is behind Cloudflare Access, friends must pass Access first |
 
 Whichever you use, the IP check uses the friend's real address. Through a tunnel the panel reads
 the address Cloudflare reports; through a port forward it reads the connection itself.

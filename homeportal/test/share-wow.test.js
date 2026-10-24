@@ -122,7 +122,7 @@ test('WoW: install enables the console; settings write to the .conf files safely
   assert.equal(server.wow.realmName, 'Its quoted');
   assert.throws(() => wow.writeSettings(server, { 'wow.address': 'bad host; DROP' }), /hostname or IP/);
   assert.deepEqual(wow.ports(server).map((p) => p.port), [3724, 8085]);
-  assert.equal(wow.connectAddress(server, 'play.thefinalhour.us'), 'set realmlist play.thefinalhour.us');
+  assert.equal(wow.connectAddress(server, 'play.example.com'), 'set realmlist play.example.com');
 });
 
 test('WoW: account names and passwords are validated for console safety', () => {

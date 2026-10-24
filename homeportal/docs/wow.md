@@ -55,23 +55,23 @@ There's no public sign-up: **only accounts you create can log in**.
 - **Router:** forward **TCP 3724** (login) and **TCP 8085** (world) to your PC. Don't forward
   MySQL (3310).
 - **Address:** the realm is announced at your panel's public address. Set
-  `play.thefinalhour.us` under Panel settings, or override it per server in Settings → Realm. The
+  `play.example.com` under Panel settings, or override it per server in Settings → Realm. The
   panel keeps the realm list up to date every time it starts the server.
 - **Friends' client:** each friend needs a working **WoW 3.3.5a (build 12340)** client. In its
   `Data\enUS\realmlist.wtf` (or `enGB`), replace the contents with:
   ```
-  set realmlist play.thefinalhour.us
+  set realmlist play.example.com
   ```
   The server's Overview shows this line with a Copy button. Then they start `Wow.exe` and log in
   with the account you made.
-- **You, on the hosting PC:** use the same `set realmlist play.thefinalhour.us` as everyone, so
+- **You, on the hosting PC:** use the same `set realmlist play.example.com` as everyone, so
   one client works for all of you. Run this once as Administrator:
   ```powershell
-  powershell -ExecutionPolicy Bypass -File scripts\use-domain-on-this-pc.ps1 -Hostname play.thefinalhour.us
+  powershell -ExecutionPolicy Bypass -File scripts\use-domain-on-this-pc.ps1 -Hostname play.example.com
   ```
   It's needed because cMaNGOS gives every player the same realm address. On your own PC that name
   points to your public IP, and most routers can't loop back to it, so you'd log in, pick the realm,
-  then hang at "Connecting" and drop. The script adds `127.0.0.1 play.thefinalhour.us` to your
+  then hang at "Connecting" and drop. The script adds `127.0.0.1 play.example.com` to your
   hosts file (this PC only; friends are unaffected). Add `-Remove` to undo it.
 - **Extra lock-down (optional):** limit the WoW ports in Windows Firewall to your friends' IPs.
   These are the same IPs you allow on the file share.

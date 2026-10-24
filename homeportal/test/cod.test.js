@@ -23,7 +23,7 @@ function fakeServer(rconPassword) {
     let reply;
     if (text === 'getstatus') {
       reply = 'statusResponse\n\\sv_hostname\\^1HomePortal ^7BO2\\mapname\\mp_raid\\g_gametype\\dom\\sv_maxclients\\18\n' +
-        '10 45 "^2Zynarath"\n3 0 "bot1"\n0 999 "Bot Two"\n';
+        '10 45 "^2Player1"\n3 0 "bot1"\n0 999 "Bot Two"\n';
     } else if (text.startsWith('rcon ')) {
       const [, pw, ...cmd] = text.split(' ');
       reply = pw === rconPassword ? `print\nran: ${cmd.join(' ')}\n` : 'print\nInvalid password.\n';
@@ -41,7 +41,7 @@ test('getstatus parses players and separates bots by ping', async () => {
   assert.equal(st.map, 'mp_raid');
   assert.equal(st.players.length, 3);
   const q = await cod.query({ cod: { port, maxClients: 18 } });
-  assert.deepEqual(q.players, ['Zynarath']);
+  assert.deepEqual(q.players, ["Player1"]);
   assert.equal(q.bots, 2);
   assert.equal(q.online, 1);
   assert.equal(await q3.rcon('127.0.0.1', port, 'pw', 'map_rotate'), 'ran: map_rotate\n');

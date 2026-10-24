@@ -45,7 +45,7 @@ friends connect over Tailscale.
 In game, open the console (`~`) and type:
 
 ```
-password rex-1234; connect play.thefinalhour.us:28960
+password rex-1234; connect play.example.com:28960
 ```
 
 The server's Overview shows the exact line, with its own password and port. BO2/BO1/MW3 servers

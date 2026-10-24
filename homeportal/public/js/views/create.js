@@ -188,7 +188,7 @@ export async function render(root, { navigate, refreshServers }) {
       <div></div>
       <label class="switch field-switch span-2"><input type="checkbox" name="whitelist" checked><span></span>Friends only (whitelist)
         <small class="hint">Minecraft has no join passwords — the whitelist is how you keep it private. Only listed players can join.</small></label>
-      <label class="field span-2"><span>Your group's Minecraft usernames</span><input name="whitelistNames" placeholder="e.g. Zynarath, FriendName" autocomplete="off">
+      <label class="field span-2"><span>Your group's Minecraft usernames</span><input name="whitelistNames" placeholder="e.g. YourName, FriendName" autocomplete="off">
         <small class="hint">Comma-separated. Added automatically the first time the server starts; manage later in the Players tab.</small></label>
       <label class="check span-2"><input type="checkbox" name="eula" required> I agree to the <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noopener">Minecraft EULA</a></label>`;
   }

@@ -22,7 +22,7 @@ const mock = http.createServer((req, res) => {
     };
     if (url.pathname === '/ip') return res.end(currentIp);
     if (req.headers.authorization !== 'Bearer good-token') return send(null, 403);
-    if (url.pathname === '/cf/zones') return send(url.searchParams.get('name') === 'thefinalhour.us' ? [{ id: 'z1', name: 'thefinalhour.us' }] : []);
+    if (url.pathname === '/cf/zones') return send(url.searchParams.get('name') === 'example.com' ? [{ id: 'z1', name: 'example.com' }] : []);
     if (url.pathname === '/cf/zones/z1/dns_records' && req.method === 'GET') return send(records.filter((r) => r.name === url.searchParams.get('name')));
     if (url.pathname === '/cf/zones/z1/dns_records' && req.method === 'POST') {
       const r = { id: 'r' + (records.length + 1), ...JSON.parse(body) };
@@ -47,10 +47,10 @@ test('dynamic DNS creates, keeps and updates the game hostname', async () => {
   const db = require('../src/db');
   const ddns = require('../src/services/ddns');
 
-  assert.deepEqual(ddns.cleanHostnames('Play.TheFinalHour.us., mc2.thefinalhour.us'), ['play.thefinalhour.us', 'mc2.thefinalhour.us']);
+  assert.deepEqual(ddns.cleanHostnames('Play.Example.com., mc2.example.com'), ['play.example.com', 'mc2.example.com']);
   assert.throws(() => ddns.cleanHostnames('not a host'));
 
-  db.data.settings.ddns = { enabled: true, token: 'good-token', hostnames: ['play.thefinalhour.us'] };
+  db.data.settings.ddns = { enabled: true, token: 'good-token', hostnames: ['play.example.com'] };
   let s = await ddns.runOnce({ force: true });
   assert.equal(s.error, null);
   assert.equal(s.records[0].result, 'created');
@@ -72,7 +72,7 @@ test('dynamic DNS creates, keeps and updates the game hostname', async () => {
   s = await ddns.runOnce({ force: true });
   assert.match(s.error, /No Cloudflare zone/);
 
-  db.data.settings.ddns = { enabled: true, token: 'bad', hostnames: ['play.thefinalhour.us'] };
+  db.data.settings.ddns = { enabled: true, token: 'bad', hostnames: ['play.example.com'] };
   ddns.reset();
   s = await ddns.runOnce({ force: true });
   assert.match(s.error, /Cloudflare: denied/);

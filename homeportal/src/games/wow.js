@@ -468,7 +468,7 @@ const wow = {
     const groups = new Map([['Realm', []]]);
     groups.get('Realm').push(
       { key: 'wow.realmName', label: 'Realm name (shown in the realm list)', type: 'text' },
-      { key: 'wow.address', label: 'Address players connect to', type: 'text', hint: `Blank = the panel's public address (${db.data.settings.publicAddress || 'not set — 127.0.0.1'}). Use a hostname like play.thefinalhour.us.` }
+      { key: 'wow.address', label: 'Address players connect to', type: 'text', hint: `Blank = the panel's public address (${db.data.settings.publicAddress || 'not set — 127.0.0.1'}). Use a hostname like play.example.com.` }
     );
     if (p.dbDir) groups.get('Realm').push({ key: 'wow.manageDb', label: 'Start/stop the bundled MySQL with the server', type: 'bool' });
     for (const f of FIELDS) {

@@ -12,7 +12,7 @@ export async function render(root) {
       <div class="form-grid">
         <label class="field"><span>Panel name</span><input name="panelName" value="${s.panelName}" maxlength="40"></label>
         <label class="field"><span>Public address players connect to</span>
-          <div class="input-row"><input name="publicAddress" value="${s.publicAddress}" placeholder="e.g. play.thefinalhour.us"><button type="button" class="btn" id="detect">${icon('globe')}Detect</button></div>
+          <div class="input-row"><input name="publicAddress" value="${s.publicAddress}" placeholder="e.g. play.example.com"><button type="button" class="btn" id="detect">${icon('globe')}Detect</button></div>
           <small class="hint">Your public IP, a dynamic DNS name (DuckDNS, No-IP) or a Tailscale IP. Shown as the "Connect" address on each server.</small></label>
       </div>
       <h3>CurseForge</h3>
@@ -25,15 +25,15 @@ export async function render(root) {
     </form>
     <form id="dd" class="panel">
       <h3>Domain &amp; dynamic DNS</h3>
-      <p class="muted small">Keeps your game hostnames (for example <code>play.thefinalhour.us</code>) pointed at this PC's public IP, checking every 5 minutes.
+      <p class="muted small">Keeps your game hostnames (for example <code>play.example.com</code>) pointed at this PC's public IP, checking every 5 minutes.
         Needs the domain's DNS on Cloudflare. The panel itself is reached through a Cloudflare Tunnel; see <code>docs/domain-setup.md</code>.</p>
       <label class="switch field-switch"><input type="checkbox" name="enabled" ${d.enabled ? 'checked' : ''}><span></span>Keep DNS records updated</label>
       <div class="form-grid">
-        <label class="field span-2"><span>Hostnames for game servers (comma-separated)</span><input name="hostnames" value="${d.hostnames.join(', ')}" placeholder="play.thefinalhour.us">
+        <label class="field span-2"><span>Hostnames for game servers (comma-separated)</span><input name="hostnames" value="${d.hostnames.join(', ')}" placeholder="play.example.com">
           <small class="hint">Created as "DNS only" A records. Don't list the panel's hostname here; the tunnel handles that one.</small></label>
         <label class="field span-2"><span>Cloudflare API token ${d.tokenSet ? html`<span class="pill pill-ok">set</span>` : html`<span class="pill pill-warn">not set</span>`}</span>
           <input name="token" type="password" autocomplete="off" placeholder="${d.tokenSet ? '•••••••• (leave blank to keep)' : 'Paste token'}">
-          <small class="hint">Cloudflare dashboard → My Profile → API Tokens → Create Token → "Edit zone DNS" template → Zone: thefinalhour.us.</small></label>
+          <small class="hint">Cloudflare dashboard → My Profile → API Tokens → Create Token → "Edit zone DNS" template → Zone: example.com.</small></label>
       </div>
       ${d.lastCheck
         ? html`<div class="callout ${d.error ? 'callout-bad' : 'callout-ok'}">${icon(d.error ? 'alert' : 'check')}<div>

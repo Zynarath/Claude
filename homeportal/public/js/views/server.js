@@ -171,9 +171,9 @@ export async function render(root, ctx) {
       <p class="small">Everyone, you included, puts this one line in <code>Data\\enUS\\realmlist.wtf</code> (or <code>enGB</code>) in their WoW 3.3.5a folder:</p>
       <div class="address"><code>${line}</code><button class="btn btn-sm" data-copy="${line}">${icon('copy')}Copy</button></div>
       ${addr === '127.0.0.1'
-        ? html`<div class="callout callout-warn">${icon('alert')}<div>The realm is announced at <code>127.0.0.1</code>, so only this PC can join. Set your domain (e.g. play.thefinalhour.us) under <a href="#/settings">Panel settings → Public address</a> or <em>Settings → Realm</em>, then restart.</div></div>`
+        ? html`<div class="callout callout-warn">${icon('alert')}<div>The realm is announced at <code>127.0.0.1</code>, so only this PC can join. Set your domain (e.g. play.example.com) under <a href="#/settings">Panel settings → Public address</a> or <em>Settings → Realm</em>, then restart.</div></div>`
         : isIp
-          ? html`<div class="callout callout-warn">${icon('alert')}<div>The realm is announced at the IP <code>${addr}</code>. Friends can join, but <strong>you can't from this PC</strong> (routers don't loop back to their own public IP), and it breaks if your IP changes. Use a hostname like play.thefinalhour.us in <em>Settings → Realm</em>, then restart.</div></div>`
+          ? html`<div class="callout callout-warn">${icon('alert')}<div>The realm is announced at the IP <code>${addr}</code>. Friends can join, but <strong>you can't from this PC</strong> (routers don't loop back to their own public IP), and it breaks if your IP changes. Use a hostname like play.example.com in <em>Settings → Realm</em>, then restart.</div></div>`
           : html`<p class="muted small">On this PC, <code>${addr}</code> must point to 127.0.0.1: run <code>scripts\\use-domain-on-this-pc.ps1 -Hostname ${addr}</code> once as Administrator. Friends need nothing extra.</p>`}
       <p class="muted small">They log in with the account you create for them in the <a href="#/server/${s.id}/accounts">Accounts</a> tab. The realm list is updated with this address every time the server starts.</p>
       <p><button class="btn btn-sm" id="wow-diag">${icon('activity')}Check connection</button></p>

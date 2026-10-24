@@ -81,12 +81,12 @@ Make your HomePortal folder a Git copy of the repository once; after that, doubl
 2. Close HomePortal. In PowerShell:
    ```powershell
    cd $HOME\Desktop
-   git clone -b claude/eager-fermi-ocfo13 https://github.com/Zynarath/Claude.git HomePortalRepo
+   git clone -b claude/eager-fermi-ocfo13 https://github.com/YOUR-USERNAME/HomePanel.git HomePanel
    ```
    Sign in to GitHub in the browser window if it asks (the repository may be private).
 3. Copy your **`data`** folder and **`config.json`** from your old `homeportal` folder into
-   `HomePortalRepo\homeportal\`. These hold your servers, users and settings; Git never touches them.
-4. From now on, run HomePortal from `HomePortalRepo\homeportal` (`start.bat`).
+   `HomePanel\homeportal\`. These hold your servers, users and settings; Git never touches them.
+4. From now on, run HomePortal from `HomePanel\homeportal` (`start.bat`).
 
 After that, updates come from the panel itself: **Panel settings → Updates** checks GitHub every
 hour and shows what changed. Click **Update now**, or turn on **Install updates automatically**,

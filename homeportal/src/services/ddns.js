@@ -1,5 +1,5 @@
 'use strict';
-// Dynamic DNS for Cloudflare: keeps A records (e.g. play.thefinalhour.us) pointed at this PC's
+// Dynamic DNS for Cloudflare: keeps A records (e.g. play.example.com) pointed at this PC's
 // public IP, so friends can always join by name even when your ISP changes your IP.
 const db = require('../db');
 const logger = require('../util/log');
@@ -51,7 +51,7 @@ async function cf(token, method, path, body) {
   return json.result;
 }
 
-// "play.thefinalhour.us" -> the zone "thefinalhour.us" (handles multi-part subdomains too).
+// "play.example.com" -> the zone "example.com" (handles multi-part subdomains too).
 const zoneCache = new Map();
 async function findZone(token, hostname) {
   const parts = hostname.split('.');

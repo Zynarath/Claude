@@ -1,5 +1,5 @@
 # Installs cloudflared and connects it to your Cloudflare Tunnel as a Windows service,
-# so https://panel.thefinalhour.us reaches HomePortal even after reboots.
+# so https://panel.example.com reaches HomePortal even after reboots.
 # 1. Create the tunnel in the Cloudflare dashboard and copy the token (the long "eyJ..." string).
 # 2. In an elevated PowerShell:  powershell -ExecutionPolicy Bypass -File scripts\setup-cloudflare-tunnel.ps1 -Token eyJ...
 param([Parameter(Mandatory = $true)][string]$Token)

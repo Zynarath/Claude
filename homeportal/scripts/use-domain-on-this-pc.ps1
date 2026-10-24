@@ -1,12 +1,12 @@
-# Makes your game domain (e.g. play.thefinalhour.us) point to THIS PC, on this PC only.
+# Makes your game domain (e.g. play.example.com) point to THIS PC, on this PC only.
 # Why: most home routers can't connect from inside your network back to your own public IP
 # ("NAT loopback"). Friends on the internet are unaffected; they keep using your public IP.
 # With this, you can use the exact same address/client as your friends (WoW realmlist, Minecraft, CoD...).
 #
 # Run in an elevated PowerShell (right-click > Run as administrator):
-#   powershell -ExecutionPolicy Bypass -File scripts\use-domain-on-this-pc.ps1 -Hostname play.thefinalhour.us
+#   powershell -ExecutionPolicy Bypass -File scripts\use-domain-on-this-pc.ps1 -Hostname play.example.com
 # Undo:
-#   powershell -ExecutionPolicy Bypass -File scripts\use-domain-on-this-pc.ps1 -Hostname play.thefinalhour.us -Remove
+#   powershell -ExecutionPolicy Bypass -File scripts\use-domain-on-this-pc.ps1 -Hostname play.example.com -Remove
 param(
   [Parameter(Mandatory = $true)][string]$Hostname,
   [switch]$Remove

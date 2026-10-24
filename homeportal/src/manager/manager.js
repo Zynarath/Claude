@@ -26,9 +26,10 @@ class Manager extends EventEmitter {
     setInterval(() => this.sampleStats().catch(() => {}), 3000);
     setInterval(() => this.queryPlayers().catch(() => {}), 15000);
     scheduler.start(this);
+    const resume = new Set(require('../services/updater').resumeList());
     for (const inst of this.instances.values()) {
-      if (inst.server.autoStart && inst.server.installed) {
-        log.info(`Auto-starting ${inst.server.name}`);
+      if ((inst.server.autoStart || resume.has(inst.server.id)) && inst.server.installed) {
+        log.info(`${resume.has(inst.server.id) ? 'Restarting after update' : 'Auto-starting'}: ${inst.server.name}`);
         inst.start().catch((e) => log.warn(`Auto-start of ${inst.server.name} failed: ${e.message}`));
       }
     }

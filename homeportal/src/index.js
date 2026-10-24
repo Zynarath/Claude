@@ -171,19 +171,22 @@ server.on('error', (err) => {
 });
 
 let shuttingDown = false;
-async function shutdown(signal) {
+async function shutdown(signal, exitCode = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
-  log.info(`${signal} received — stopping game servers safely before exit...`);
-  const force = setTimeout(() => process.exit(1), 4 * 60 * 1000);
+  log.info(`${signal} — stopping game servers safely before exit...`);
+  const force = setTimeout(() => process.exit(exitCode || 1), 4 * 60 * 1000);
   try {
     await manager.shutdownAll();
   } finally {
     db.saveNow();
     clearTimeout(force);
-    process.exit(0);
+    process.exit(exitCode);
   }
 }
+// After an update, exit with a code start.bat recognises so it starts the new version.
+const updater = require('./services/updater');
+updater.init(manager, (why) => shutdown(`Restarting for ${why}`, updater.RESTART_CODE));
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK']) process.on(sig, () => shutdown(sig));
 process.on('uncaughtException', (err) => log.error(err));
 process.on('unhandledRejection', (err) => log.error(err instanceof Error ? err : new Error(String(err))));

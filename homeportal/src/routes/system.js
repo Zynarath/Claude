@@ -108,6 +108,16 @@ router.post('/settings/ddns/run', auth.requireAdmin, async (_req, res) => {
   res.json(ddns.publicStatus());
 });
 
+// ---- self-update ----
+const updater = require('../services/updater');
+router.get('/settings/updates', auth.requireAdmin, async (_req, res) => res.json(await updater.status()));
+router.post('/settings/updates/check', auth.requireAdmin, async (_req, res) => res.json(await updater.check()));
+router.post('/settings/updates/apply', auth.requireAdmin, async (_req, res) => res.json(await updater.apply({ reason: 'Update now' })));
+router.put('/settings/updates', auth.requireAdmin, async (req, res) => {
+  updater.setAuto(req.body && req.body.auto);
+  res.json(await updater.status());
+});
+
 router.get('/settings/discord', auth.requireAdmin, async (_req, res) => {
   res.json(await discord.overview());
 });

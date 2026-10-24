@@ -43,6 +43,7 @@ export async function render(root) {
       <div class="form-actions"><button class="btn btn-primary">Save</button><button type="button" class="btn" id="dd-run">${icon('refresh')}Update now</button>
         <button type="button" class="btn btn-ghost" id="dd-use">Use first hostname as public address</button></div>
     </form>
+    <div id="upd" class="panel"><h3>Updates</h3><div id="upd-body"><div class="loading">Checking…</div></div></div>
     <form id="dc" class="panel"><h3>Discord</h3><div id="dc-body"><div class="loading">Checking Discord…</div></div></form>
     <div class="panel">
       <h3>This PC</h3>
@@ -108,6 +109,7 @@ export async function render(root) {
     await api.put('/api/settings', { publicAddress: host }).then(() => { toast(`Public address set to ${host}`, 'ok'); render(root); }, (e) => toast(e.message, 'error'));
   };
   renderDiscord();
+  renderUpdates();
   const clear = $('#clear-key');
   if (clear) clear.onclick = () => api.put('/api/settings', { clearCurseforgeKey: true }).then(() => render(root));
 }
@@ -191,4 +193,67 @@ async function renderDiscord() {
   if (sy) sy.onclick = () => api.post('/api/settings/discord/sync').then((r) => toast(`${r.synced} server channel(s) ready`, 'ok'), (e) => toast(e.message, 'error'));
   const cl = $('#dc-clear');
   if (cl) cl.onclick = () => api.put('/api/settings', { discord: { clearToken: true } }).then(renderDiscord);
+}
+
+async function renderUpdates(fresh) {
+  const box = $('#upd-body');
+  if (!box) return;
+  let u;
+  try {
+    u = fresh || (await api.get('/api/settings/updates'));
+  } catch (err) {
+    box.innerHTML = html`<div class="form-error">${err.message}</div>`.s;
+    return;
+  }
+  if (!u.gitRepo) {
+    box.innerHTML = html`<p class="muted small">This copy of HomePortal wasn't installed with Git, so it can't update itself.
+      See <strong>Updating</strong> in README.md to switch to a Git copy (one time), then updates install from here.</p>`.s;
+    return;
+  }
+  box.innerHTML = html`
+    <p class="small">Version <strong>${u.version}</strong> · branch <code>${u.branch}</code> · ${u.commit}</p>
+    ${u.error ? html`<div class="callout callout-bad">${icon('alert')}<div>${u.error}</div></div>` : ''}
+    ${u.behind
+      ? html`<div class="callout callout-ok">${icon('arrowUp')}<div><strong>${u.behind} update${u.behind === 1 ? '' : 's'} available:</strong>
+          <ul>${u.changes.map((c) => html`<li class="small">${c.replace(/^\w+ /, '')}</li>`)}</ul></div></div>`
+      : html`<p class="muted small">${u.lastCheck ? `Up to date (checked ${new Date(u.lastCheck).toLocaleTimeString()}).` : 'Checks GitHub every hour.'}</p>`}
+    <label class="switch field-switch"><input type="checkbox" id="upd-auto" ${u.auto ? 'checked' : ''}><span></span>Install updates automatically
+      <small class="hint">Only while nobody is playing. Running servers are saved, stopped and started again afterwards.</small></label>
+    ${u.canRestart ? '' : html`<p class="muted small">Started without start.bat, so after an update you'll need to restart HomePortal yourself.</p>`}
+    <div class="form-actions"><button type="button" class="btn" id="upd-check">${icon('refresh')}Check now</button>
+      ${u.behind ? html`<button type="button" class="btn btn-primary" id="upd-apply">${icon('download')}Update now</button>` : ''}</div>`.s;
+  $('#upd-check').onclick = async (e) => {
+    e.target.disabled = true;
+    try {
+      renderUpdates(await api.post('/api/settings/updates/check'));
+    } catch (err) {
+      toast(err.message, 'error');
+      e.target.disabled = false;
+    }
+  };
+  $('#upd-auto').onchange = (e) => api.put('/api/settings/updates', { auto: e.target.checked }).then(() => toast('Saved', 'ok', 1500), (err) => toast(err.message, 'error'));
+  const apply = $('#upd-apply');
+  if (apply) apply.onclick = async () => {
+    apply.disabled = true;
+    apply.textContent = 'Installing…';
+    try {
+      const r = await api.post('/api/settings/updates/apply');
+      toast(r.message, 'ok', 15000);
+      if (r.restarted) {
+        // Wait for the restarted panel, then load the new page.
+        const start = Date.now();
+        const poll = async () => {
+          try {
+            const s = await api.get('/api/auth/state');
+            if (s.version !== u.version || Date.now() - start > 20000) return location.reload();
+          } catch {}
+          setTimeout(poll, 2000);
+        };
+        setTimeout(poll, 4000);
+      } else renderUpdates();
+    } catch (err) {
+      toast(err.message, 'error', 10000);
+      renderUpdates();
+    }
+  };
 }

@@ -11,6 +11,13 @@ if not exist node_modules (
   echo First start: installing packages...
   call npm install --omit=dev --no-audit --no-fund
 )
+rem Lets the panel restart itself after installing an update.
+set HOMEPORTAL_LAUNCHER=1
+:run
 echo Starting HomePortal. Close this window or press Ctrl+C to stop the panel (running game servers are saved and stopped first).
 node src\index.js
+if %errorlevel%==75 (
+  echo Restarting HomePortal after an update...
+  goto run
+)
 pause

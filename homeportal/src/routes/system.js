@@ -56,6 +56,7 @@ router.get('/settings', auth.requireAdmin, (_req, res) => {
     panelName: s.panelName,
     publicAddress: s.publicAddress,
     curseforgeKeySet: !!s.curseforgeApiKey,
+    dataDir: config.dataDir,
     serversDir: config.serversDir,
     backupsDir: config.backupsDir,
     ddns: ddns.publicStatus(),

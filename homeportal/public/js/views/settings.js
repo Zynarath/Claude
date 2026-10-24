@@ -51,6 +51,7 @@ export async function render(root) {
         <div><dt>CPU</dt><dd>${sys.cpuModel} · ${sys.cores} threads</dd></div>
         <div><dt>LAN addresses</dt><dd>${sys.lanAddresses.join(', ') || '—'}</dd></div>
         <div><dt>Panel port</dt><dd>${sys.panelPort}</dd></div>
+        <div><dt>Panel data</dt><dd class="mono">${s.dataDir} <span class="muted">(accounts, servers, settings — copy this folder to move the panel)</span></dd></div>
         <div><dt>Server files</dt><dd class="mono">${s.serversDir}</dd></div>
         <div><dt>Backups</dt><dd class="mono">${s.backupsDir}</dd></div>
         <div><dt>Java runtimes</dt><dd>${sys.java.length ? sys.java.map((j) => 'Java ' + j).join(', ') : 'none yet (downloaded automatically)'}</dd></div>

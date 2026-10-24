@@ -86,8 +86,13 @@ Make your HomePortal folder a Git copy of the repository once; after that, doubl
    Sign in to GitHub in the browser window if it asks (the repository may be private).
 3. Copy your **`data`** folder and **`config.json`** from your old `homeportal` folder into
    `HomePortalRepo\homeportal\`. These hold your servers, users and settings; Git never touches them.
-4. From now on, run HomePortal from `HomePortalRepo\homeportal` (`start.bat`). To update:
-   close it, run `update.bat`, then start it again.
+4. From now on, run HomePortal from `HomePortalRepo\homeportal` (`start.bat`).
+
+After that, updates come from the panel itself: **Panel settings → Updates** checks GitHub every
+hour and shows what changed. Click **Update now**, or turn on **Install updates automatically**,
+which only installs while nobody is playing. HomePortal saves and stops running servers, installs
+the update, restarts, and starts those servers again. This works when HomePortal was started with
+`start.bat`. `update.bat` still works as a manual fallback.
 
 Don't edit HomePortal's own files in that folder. Change settings in the panel or `config.json`,
 otherwise Git will refuse to update over your edits.

@@ -124,7 +124,7 @@ export async function render(root, ctx) {
           ${s.wow
             ? html`<p class="small">Friends put this line in <code>Data\enUS\realmlist.wtf</code> (or <code>Data\enGB\…</code>) inside their WoW 3.3.5a folder:</p>
                 <div class="address"><code>set realmlist ${s.wow.address || lan[0] || '127.0.0.1'}</code><button class="btn btn-sm" data-copy="set realmlist ${s.wow.address || lan[0] || '127.0.0.1'}">${icon('copy')}Copy</button></div>
-                <p class="muted small">On this PC use <code>set realmlist 127.0.0.1</code>. They log in with the account you create in the Accounts tab.</p>`
+                <p class="muted small">Use the same line on this PC. If you can pick the realm but then get stuck at "Connecting", run <code>scripts\use-domain-on-this-pc.ps1</code> once as Administrator (see docs/wow.md). It makes the name point to this PC, for this PC only.</p>`
             : ''}
           ${s.ark ? html`<p class="muted small">In ARK, open the console (<kbd>~</kbd>) and type <code>open ${esc(s.connect || (lan[0] || 'IP') + ':' + s.ark.port)}</code> to join directly.</p>` : ''}
           <h4>Ports to forward on your router</h4>

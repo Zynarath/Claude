@@ -64,9 +64,15 @@ There's no public sign-up: **only accounts you create can log in**.
   ```
   The server's Overview shows this line with a Copy button. Then they start `Wow.exe` and log in
   with the account you made.
-- **You, on the hosting PC:** use `set realmlist 127.0.0.1`. The realm list sends your public
-  name; if logging in from your own PC hangs at "connecting", add
-  `127.0.0.1 play.thefinalhour.us` to `C:\Windows\System32\drivers\etc\hosts`.
+- **You, on the hosting PC:** use the same `set realmlist play.thefinalhour.us` as everyone, so
+  one client works for all of you. Run this once as Administrator:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts\use-domain-on-this-pc.ps1 -Hostname play.thefinalhour.us
+  ```
+  It's needed because cMaNGOS gives every player the same realm address. On your own PC that name
+  points to your public IP, and most routers can't loop back to it, so you'd log in, pick the realm,
+  then hang at "Connecting" and drop. The script adds `127.0.0.1 play.thefinalhour.us` to your
+  hosts file (this PC only; friends are unaffected). Add `-Remove` to undo it.
 - **Extra lock-down (optional):** limit the WoW ports in Windows Firewall to your friends' IPs.
   These are the same IPs you allow on the file share.
 

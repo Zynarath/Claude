@@ -72,6 +72,26 @@ server's Overview tab. When it's done, press **Start**.
 
 ---
 
+## Updating
+
+Make your HomePortal folder a Git copy of the repository once; after that, double-click
+**`update.bat`** to download the latest version.
+
+1. Install [Git for Windows](https://git-scm.com/download/win) (default options are fine).
+2. Close HomePortal. In PowerShell:
+   ```powershell
+   cd $HOME\Desktop
+   git clone -b claude/eager-fermi-ocfo13 https://github.com/Zynarath/Claude.git HomePortalRepo
+   ```
+   Sign in to GitHub in the browser window if it asks (the repository may be private).
+3. Copy your **`data`** folder and **`config.json`** from your old `homeportal` folder into
+   `HomePortalRepo\homeportal\`. These hold your servers, users and settings; Git never touches them.
+4. From now on, run HomePortal from `HomePortalRepo\homeportal` (`start.bat`). To update:
+   close it, run `update.bat`, then start it again.
+
+Don't edit HomePortal's own files in that folder. Change settings in the panel or `config.json`,
+otherwise Git will refuse to update over your edits.
+
 ## Using your own domain
 
 To put the panel at `https://panel.<yourdomain>` (free HTTPS through a Cloudflare Tunnel, no

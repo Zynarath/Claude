@@ -13,6 +13,7 @@ There are no monthly hosting fees; your only cost is electricity.
 | **Minecraft — CurseForge modpack** | Search CurseForge, pick a version, one-click install. Uses the pack's official server files when available, otherwise builds the server from the manifest. One-click **update / downgrade** with automatic backup that keeps worlds, `server.properties`, ops and whitelist |
 | **Minecraft — Vanilla / Fabric / Forge / NeoForge** | Any version + loader, add individual CurseForge mods, enable/disable mods, change versions later |
 | **Call of Duty: CoD4x, IW4x (MW2), Plutonium BO2 / BO1 / MW3** (Windows; CoD4x also Linux) | Multiplayer with bots (Bot Warfare), Domination with every base map shuffled, 4x player and weapon XP by default, RCON console, live player/bot counts. Uses your own game install. See [docs/call-of-duty.md](docs/call-of-duty.md) |
+| **World of Warcraft: WotLK 3.3.5a with bots** (Windows; cMaNGOS builds on Linux) | Runs SPP Classics (cMaNGOS + Mangosbot playerbots): starts MySQL → login → world in order, edits rates/bots/realm settings, live console, friends-only game accounts, SQL backups. See [docs/wow.md](docs/wow.md) |
 | **ARK: Survival Evolved** (Windows/Linux) | SteamCMD install/update, Workshop mods via `-automanagedmods`, same settings form, RCON console and player list as ASA |
 
 The panel downloads the right Java version for each Minecraft server by itself (Java 8/17/21/25 from
@@ -76,6 +77,12 @@ server's Overview tab. When it's done, press **Start**.
 To put the panel at `https://panel.<yourdomain>` (free HTTPS through a Cloudflare Tunnel, no
 ports opened) and give players `play.<yourdomain>`, which HomePortal keeps pointed at your home
 IP, follow **[docs/domain-setup.md](docs/domain-setup.md)**.
+
+## File share
+
+Share a folder with your friends: they download from a simple page (only IPs you allow), and only
+your PC can upload. It can run on its own port so the panel stays private. See
+**[docs/file-share.md](docs/file-share.md)**.
 
 ## Discord notifications
 

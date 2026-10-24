@@ -2,7 +2,7 @@ import { api } from '../api.js';
 import { html, $, $$, on, icon, toast, esc } from '../ui.js';
 import { pickCurseForge } from './cfpicker.js';
 
-const ART = { ark: 'ark', 'ark-ase': 'ark', 'mc-cf': 'mc-cf', mc: 'mc', cod: 'cod' };
+const ART = { ark: 'ark', 'ark-ase': 'ark', 'mc-cf': 'mc-cf', mc: 'mc', cod: 'cod', wow: 'wow' };
 
 export async function render(root, { navigate, refreshServers }) {
   const [{ templates, curseforgeKey, platform }, { servers: existing }] = await Promise.all([api.get('/api/templates'), api.get('/api/servers')]);
@@ -22,7 +22,7 @@ export async function render(root, { navigate, refreshServers }) {
       <div class="tpl-grid">
         ${templates.map(
           (t) => html`<button class="tpl ${t.supported ? '' : 'tpl-disabled'}" data-tpl="${t.id}" ${t.supported ? '' : 'disabled'}>
-            <span class="tpl-art art-${ART[t.image]}"><span class="art-mono">${t.game === 'ark' ? 'ARK' : t.game === 'cod' ? t.namePrefix.split(' ')[0] : 'MC'}</span></span>
+            <span class="tpl-art art-${ART[t.image]}"><span class="art-mono">${t.game === 'ark' ? 'ARK' : t.game === 'cod' ? t.namePrefix.split(' ')[0] : t.game === 'wow' ? 'WoW' : 'MC'}</span></span>
             <span class="tpl-text"><strong>${t.title}</strong><small>${t.supported ? t.subtitle : `Not available on ${platform === 'win32' ? 'Windows' : platform} — needs Windows`}</small></span>
           </button>`
         )}
@@ -35,7 +35,7 @@ export async function render(root, { navigate, refreshServers }) {
 
   const form = async () => {
     const isMc = tpl.game === 'minecraft';
-    const ports = await api.get(`/api/servers/suggest-ports?game=${tpl.game}&title=${tpl.codTitle || ''}`).catch(() => ({}));
+    const ports = tpl.game === 'wow' ? {} : await api.get(`/api/servers/suggest-ports?game=${tpl.game}&title=${tpl.codTitle || ''}`).catch(() => ({}));
     root.innerHTML = html`
       <div class="page-head"><div>
         <button class="link-btn" id="back">← All games</button>
@@ -45,7 +45,7 @@ export async function render(root, { navigate, refreshServers }) {
           <small class="hint">Also used for this server's Discord channel.</small></label>
         ${tpl.id === 'mc-curseforge' ? cfSection(curseforgeKey) : ''}
         ${tpl.id === 'mc-custom' ? mcCustomSection() : ''}
-        ${isMc ? mcCommon(ports) : tpl.game === 'cod' ? codSection(tpl, ports) : arkSection(tpl, ports)}
+        ${isMc ? mcCommon(ports) : tpl.game === 'cod' ? codSection(tpl, ports) : tpl.game === 'wow' ? wowSection() : arkSection(tpl, ports)}
         <div class="form-actions span-2">
           <button class="btn btn-primary" type="submit">${icon('plus')}Create &amp; install</button>
           <span class="muted small">You can change all of this later in the server's Settings tab.</span>
@@ -55,6 +55,7 @@ export async function render(root, { navigate, refreshServers }) {
     const f = $('#create-form');
     if (tpl.id === 'mc-custom') setupCustom(f);
     if (tpl.id === 'mc-curseforge') setupCf(f);
+    if (tpl.game === 'wow') setupWow(f);
     if (tpl.game === 'ark' && tpl.edition === 'asa' && curseforgeKey) {
       $('#ark-mod-search').onclick = async () => {
         const picked = await pickCurseForge({ type: 'asa', title: 'Add ARK: Survival Ascended mods', multi: true });
@@ -69,7 +70,9 @@ export async function render(root, { navigate, refreshServers }) {
       e.preventDefault();
       const d = Object.fromEntries(new FormData(f));
       const body = { template: tpl.id, name: d.name, eulaAccepted: !!d.eula };
-      if (tpl.game === 'cod') {
+      if (tpl.game === 'wow') {
+        body.wow = { root: d.root, realmName: d.realmName || d.name };
+      } else if (tpl.game === 'cod') {
         body.cod = {
           gameDir: d.gameDir, port: Number(d.port), password: d.password, maxClients: Number(d.maxClients), gametype: 'dom',
           xpScale: Number(d.xpScale), weaponXpScale: Number(d.weaponXpScale || d.xpScale), plutoKey: d.plutoKey,
@@ -188,6 +191,39 @@ export async function render(root, { navigate, refreshServers }) {
       <label class="field span-2"><span>Your group's Minecraft usernames</span><input name="whitelistNames" placeholder="e.g. Zynarath, FriendName" autocomplete="off">
         <small class="hint">Comma-separated. Added automatically the first time the server starts; manage later in the Players tab.</small></label>
       <label class="check span-2"><input type="checkbox" name="eula" required> I agree to the <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noopener">Minecraft EULA</a></label>`;
+  }
+
+  function wowSection() {
+    return html`
+      <div class="callout span-2">${icon('info')}<div>HomePortal runs the <strong>SPP Classics V2</strong> server package (cMaNGOS + Mangosbot bots + its own MySQL and map data).
+        Install it first: download <a href="https://github.com/celguar/spp-classics-cmangos/releases/tag/v2.0" target="_blank" rel="noopener">SPP_Classics_V2.exe</a>,
+        extract it, run <code>Server_Update.bat</code>, choose <strong>WotLK</strong> and let it finish downloading — then close it. Any other cMaNGOS WotLK folder works too.</div></div>
+      <label class="field span-2"><span>Server folder</span><div class="input-row"><input name="root" required placeholder="e.g. C:\Games\SPP_Classics_V2" autocomplete="off"><button type="button" class="btn" id="wow-check">${icon('search')}Check</button></div>
+        <small class="hint">The SPP_Classics_V2 folder (or its SPP_Server folder). The panel uses the files where they are; nothing is copied.</small></label>
+      <div id="wow-detect" class="span-2"></div>
+      <label class="field span-2"><span>Realm name</span><input name="realmName" maxlength="32" placeholder="Same as the server name"></label>
+      <div class="callout span-2">${icon('shield')}<div><strong>Friends only:</strong> nobody can sign up by themselves. You create an account for each friend in the server's <em>Accounts</em> tab.</div></div>`;
+  }
+
+  function setupWow(f) {
+    const box = $('#wow-detect');
+    const check = async () => {
+      if (!f.root.value.trim()) return;
+      box.innerHTML = '<div class="loading">Checking…</div>';
+      try {
+        const d = await api.get(`/api/wow/detect?path=${encodeURIComponent(f.root.value)}`);
+        const row = (ok, label) => html`<li class="${ok ? 'ok' : 'bad'}">${icon(ok ? 'check' : 'x')} ${label}</li>`;
+        box.innerHTML = html`<div class="panel detect">
+          <strong>${d.layout === 'spp' ? 'SPP Classics install found' : d.layout === 'custom' ? 'cMaNGOS folder found' : 'Not a WotLK server folder'}</strong> <span class="muted small mono">${d.root}</span>
+          ${d.layout ? html`<ul class="checklist">${row(d.found.mangosd, 'World server (mangosd)')}${row(d.found.realmd, 'Login server (realmd)')}${row(d.found.mangosdConf && d.found.realmdConf, 'Config files')}
+            ${row(d.found.botsConf, 'Bots config (aiplayerbot.conf)')}${row(d.found.mapData, 'Map data (dbc + maps)')}${row(d.found.database, 'Bundled MySQL (started by the panel)')}</ul>` : ''}
+          ${d.problems.length ? html`<div class="form-error">${d.problems.join(' ')}</div>` : html`<p class="small">${icon('check')} Ready to add.</p>`}</div>`.s;
+      } catch (err) {
+        box.innerHTML = html`<div class="form-error">${err.message}</div>`.s;
+      }
+    };
+    $('#wow-check').onclick = check;
+    f.root.addEventListener('change', check);
   }
 
   function codSection(t, ports) {

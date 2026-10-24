@@ -25,6 +25,7 @@ class Instance extends EventEmitter {
     this.startedAt = null;
     this.crashes = [];
     this.stopRequested = false;
+    this.aux = new Map(); // helper processes some games need (e.g. WoW: MySQL + login server)
     this.log = logger(`server:${server.id}`);
   }
 
@@ -63,10 +64,12 @@ class Instance extends EventEmitter {
     this.setStatus('starting');
     let launch;
     try {
+      if (this.game.preStart) await this.game.preStart(this);
       launch = await this.game.buildLaunch(this.server);
     } catch (err) {
-      this.setStatus('stopped');
       this.appendConsole(`[panel] Cannot start: ${err.message}`);
+      if (this.game.postStop) await this.game.postStop(this).catch(() => {});
+      this.setStatus('stopped');
       throw err;
     }
     this.appendConsole(`[panel] Starting: ${launch.command} ${launch.args.join(' ')}`);
@@ -176,7 +179,57 @@ class Instance extends EventEmitter {
     setTimeout(check, 20000);
   }
 
+  /** Start a helper process whose output is shown in the console with a [name] prefix. */
+  spawnAux(name, command, args, { cwd, filter } = {}) {
+    this.appendConsole(`[panel] Starting ${name}: ${command} ${args.join(' ')}`);
+    const child = spawn(command, args, { cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    this.aux.set(name, child);
+    let partial = '';
+    const onData = (chunk) => {
+      const parts = (partial + chunk.toString()).split('\n');
+      partial = parts.pop();
+      for (const p of parts) if (p.trim() && (!filter || filter(p))) this.appendConsole(`[${name}] ${p.replace(/\r$/, '')}`);
+    };
+    child.stdout.on('data', onData);
+    child.stderr.on('data', onData);
+    child.stdin.on('error', () => {});
+    child.on('error', (err) => this.appendConsole(`[panel] ${name} failed to launch: ${err.message}`));
+    child.on('exit', (code) => {
+      if (this.aux.get(name) === child) this.aux.delete(name);
+      this.appendConsole(`[panel] ${name} exited (code ${code ?? 'none'}).`);
+      this.emit('aux-exit', name, code);
+    });
+    return child;
+  }
+
+  auxRunning(name) {
+    return this.aux.has(name);
+  }
+
+  waitForAuxExit(name, timeoutMs) {
+    const child = this.aux.get(name);
+    if (!child) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const t = setTimeout(() => resolve(false), timeoutMs);
+      child.once('exit', () => {
+        clearTimeout(t);
+        resolve(true);
+      });
+    });
+  }
+
+  killAux(name) {
+    const child = this.aux.get(name);
+    if (!child) return;
+    if (process.platform === 'win32' && child.pid) execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true }, () => {});
+    else child.kill('SIGKILL');
+  }
+
   onExit(code, signal) {
+    this.handleExit(code, signal).catch((err) => this.log.error(err));
+  }
+
+  async handleExit(code, signal) {
     clearInterval(this.tailTimer);
     clearTimeout(this.killTimer);
     if (this.game.closeRcon) this.game.closeRcon(this.server);
@@ -185,10 +238,17 @@ class Instance extends EventEmitter {
     const expected = this.stopRequested;
     this.appendConsole(`[panel] Server process exited (code ${code ?? 'none'}${signal ? ', signal ' + signal : ''}).`);
     if (expected) {
+      if (this.game.postStop && this.aux.size) {
+        this.appendConsole('[panel] Stopping helper processes...');
+        await this.game.postStop(this).catch((err) => this.appendConsole(`[panel] ${err.message}`));
+      }
       this.setStatus('stopped');
       this.emit('exited', { expected: true });
       return;
     }
+    // After a crash, helper processes keep running so an auto-restart is quick; without
+    // auto-restart they're shut down too.
+    if (!this.server.autoRestart && this.game.postStop && this.aux.size) await this.game.postStop(this).catch(() => {});
     this.setStatus('crashed');
     this.emit('exited', { expected: false });
     const now = Date.now();
@@ -247,6 +307,7 @@ class Instance extends EventEmitter {
   }
 
   kill() {
+    for (const name of [...this.aux.keys()]) this.killAux(name);
     const child = this.child;
     if (!child) return;
     this.stopRequested = true;

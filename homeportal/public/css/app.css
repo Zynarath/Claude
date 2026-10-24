@@ -398,3 +398,21 @@ a.chip:hover { color: var(--text); text-decoration: none; }
 .art-cod { background: radial-gradient(circle at 75% 25%, #c9a227 0, transparent 50%), linear-gradient(135deg, #1c1f24, #3d3a2c 60%, #6b5a2a); }
 .check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 14px; margin: 4px 0 6px; }
 .check-grid .check { font-weight: 500; }
+
+/* file share page */
+.share-page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+.share-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.share-head h1 { margin: 0; }
+.share-head p { margin: 2px 0 0; }
+.share-logo { width: 44px; height: 44px; }
+.share-card { max-width: 520px; margin: 10vh auto 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; box-shadow: var(--shadow); }
+.share-card .share-logo { margin-bottom: 8px; }
+.big-ip code { font-size: 20px; letter-spacing: 0.02em; }
+.ip-cell { font-family: var(--mono); }
+
+/* WoW */
+.art-wow { background: radial-gradient(circle at 70% 25%, #6fc3ff 0, transparent 50%), linear-gradient(135deg, #0b1d3a, #2a4f7a 55%, #8fd0ff); }
+.checklist { list-style: none; padding: 0; margin: 10px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 16px; }
+.checklist li.ok { color: var(--ok); }
+.checklist li.bad { color: var(--bad); }
+.panel.detect { margin: 0 0 14px; }

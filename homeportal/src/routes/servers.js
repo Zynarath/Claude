@@ -70,6 +70,10 @@ function view(inst, user, full = false) {
     };
     if (perms.includes('settings') || perms.includes('admin')) out.cod.joinPassword = s.cod.password || '';
   }
+  if (s.wow) {
+    out.wow = { realmName: s.wow.realmName, address: s.wow.address || db.data.settings.publicAddress || '', manageDb: !!s.wow.manageDb };
+    if (perms.includes('admin')) out.wow.root = s.wow.root;
+  }
   if (full) {
     Object.assign(out, {
       dir: user.role === 'admin' ? s.dir : undefined,
@@ -220,7 +224,7 @@ function modFile(inst, name) {
 router.get('/servers/:id/mods', (req, res) => {
   const inst = load(req, 'mods');
   if (inst.server.game === 'minecraft') return res.json({ mods: inst.game.listMods(inst.server) });
-  if (inst.server.game === 'cod') return res.json({ mods: [] });
+  if (inst.server.game === 'cod' || inst.server.game === 'wow') return res.json({ mods: [] });
   res.json({ mods: inst.server.ark.mods.map((id) => ({ id })) });
 });
 
@@ -388,6 +392,82 @@ router.delete('/servers/:id/whitelist/:name', (req, res) => {
 router.put('/servers/:id/whitelist/enabled', (req, res) => {
   const inst = mcOnly(load(req, 'settings'));
   inst.game.setWhitelistEnabled(inst.server, inst, !!(req.body && req.body.enabled));
+  res.json({ ok: true });
+});
+
+// ---- WoW: folder detection & game accounts ----
+router.get('/wow/detect', auth.requireAdmin, (req, res) => {
+  const d = games.wow.detect(req.query.path);
+  res.json({ layout: d.layout, root: d.root, found: d.found, problems: d.problems, dataDir: d.dataDir, confDir: d.confDir });
+});
+
+function wowOnly(inst) {
+  if (inst.server.game !== 'wow') throw new HttpError(400, 'Not a WoW server');
+  return inst;
+}
+function wowRunning(inst) {
+  if (!inst.child || inst.status !== 'running') throw new HttpError(409, 'Start the server first — accounts are managed through its console');
+}
+const gm = (v) => {
+  const n = Number(v);
+  if (!(n >= 0 && n <= 3)) throw new HttpError(400, 'GM level must be 0 (player) to 3 (admin)');
+  return n;
+};
+
+router.get('/servers/:id/wow/accounts', async (req, res) => {
+  const inst = wowOnly(load(req, 'settings'));
+  try {
+    res.json({ accounts: await inst.game.listAccounts(inst.server), running: inst.status === 'running' });
+  } catch (err) {
+    res.json({ accounts: [], dbOffline: true, error: err.message, running: inst.status === 'running' });
+  }
+});
+
+router.post('/servers/:id/wow/accounts', async (req, res) => {
+  const inst = wowOnly(load(req, 'settings'));
+  const { username, password } = req.body || {};
+  const level = gm(req.body.gmlevel || 0);
+  if (!games.wow.NAME_RE.test(username || '')) throw new HttpError(400, 'Account names are 3–16 letters or numbers');
+  if (!games.wow.PASS_RE.test(password || '')) throw new HttpError(400, 'Passwords are 4–16 characters, no spaces or quotes (a WoW client limit)');
+  wowRunning(inst);
+  if (await inst.game.accountExists(inst.server, username)) throw new HttpError(400, 'That account name is taken');
+  // Expansion 2 = Wrath of the Lich King (without it the account is limited to vanilla content).
+  inst.writeStdin(`account create ${username} ${password} 2`);
+  if (level > 0) {
+    await new Promise((r) => setTimeout(r, 1500));
+    inst.writeStdin(`account set gmlevel ${username} ${level}`);
+  }
+  inst.appendConsole(`[accounts] ${req.user.username} created game account ${username.toUpperCase()}${level ? ` (GM level ${level})` : ''}`);
+  res.json({ ok: true });
+});
+
+router.post('/servers/:id/wow/accounts/:name/password', async (req, res) => {
+  const inst = wowOnly(load(req, 'settings'));
+  const name = req.params.name;
+  if (!games.wow.NAME_RE.test(name)) throw new HttpError(400, 'Invalid account');
+  if (!games.wow.PASS_RE.test(req.body.password || '')) throw new HttpError(400, 'Passwords are 4–16 characters, no spaces or quotes');
+  wowRunning(inst);
+  inst.writeStdin(`account set password ${name} ${req.body.password} ${req.body.password}`);
+  inst.appendConsole(`[accounts] ${req.user.username} changed the password of ${name.toUpperCase()}`);
+  res.json({ ok: true });
+});
+
+router.post('/servers/:id/wow/accounts/:name/gmlevel', async (req, res) => {
+  const inst = wowOnly(load(req, 'settings'));
+  if (!games.wow.NAME_RE.test(req.params.name)) throw new HttpError(400, 'Invalid account');
+  const level = gm(req.body.gmlevel);
+  wowRunning(inst);
+  inst.writeStdin(`account set gmlevel ${req.params.name} ${level}`);
+  inst.appendConsole(`[accounts] ${req.user.username} set ${req.params.name.toUpperCase()} to GM level ${level}`);
+  res.json({ ok: true });
+});
+
+router.delete('/servers/:id/wow/accounts/:name', async (req, res) => {
+  const inst = wowOnly(load(req, 'settings'));
+  if (!games.wow.NAME_RE.test(req.params.name)) throw new HttpError(400, 'Invalid account');
+  wowRunning(inst);
+  inst.writeStdin(`account delete ${req.params.name}`);
+  inst.appendConsole(`[accounts] ${req.user.username} deleted game account ${req.params.name.toUpperCase()}`);
   res.json({ ok: true });
 });
 

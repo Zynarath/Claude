@@ -34,8 +34,10 @@ app.use('/api', require('./routes/users'));
 app.use('/api', require('./routes/files'));
 app.use('/api', require('./routes/servers'));
 app.use('/api', require('./routes/system'));
+app.use('/api', require('./routes/share').adminRouter);
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
 
+app.use('/share', require('./routes/share').publicRouter);
 app.use(express.static(path.join(config.root, 'public'), { index: 'index.html', maxAge: 0 }));
 app.get('/{*splat}', (_req, res) => res.sendFile(path.join(config.root, 'public', 'index.html')));
 
@@ -150,6 +152,7 @@ manager.on('removed', (id) => {
 manager.init();
 require('./services/ddns').start();
 require('./services/discord').init(manager);
+require('./shareServer').apply();
 server.listen(config.port, config.host, () => {
   const proto = useHttps ? 'https' : 'http';
   log.info(`HomePortal is running at ${proto}://localhost:${config.port}`);

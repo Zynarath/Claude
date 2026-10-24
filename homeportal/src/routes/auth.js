@@ -4,18 +4,12 @@ const db = require('../db');
 const auth = require('../auth');
 const totp = require('../util/totp');
 const { HttpError } = require('../util/misc');
+const { isThisPc } = require('../util/netaccess');
 
 const router = express.Router();
 
-// True only for a browser on the host PC itself. Requests relayed by a tunnel or reverse proxy
-// (cloudflared, nginx, Tailscale Funnel...) also arrive from localhost, so any forwarding header
-// means the real visitor is somewhere else.
-const PROXY_HEADERS = ['x-forwarded-for', 'x-real-ip', 'forwarded', 'cf-connecting-ip', 'cf-ray', 'true-client-ip'];
-const isLoopback = (req) => {
-  const ip = req.socket.remoteAddress || '';
-  if (!(ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1')) return false;
-  return !PROXY_HEADERS.some((h) => req.headers[h] !== undefined);
-};
+// The first admin can only be created from a browser on the host PC itself (see netaccess).
+const isLoopback = (req) => isThisPc(req);
 
 router.get('/auth/state', (req, res) => {
   const s = auth.sessionFromRequest(req);

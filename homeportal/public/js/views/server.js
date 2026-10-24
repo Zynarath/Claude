@@ -7,13 +7,15 @@ import * as backupsTab from './tabs/backups.js';
 import * as schedulesTab from './tabs/schedules.js';
 import * as accessTab from './tabs/access.js';
 import * as playersTab from './tabs/players.js';
+import * as accountsTab from './tabs/accounts.js';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'activity' },
   { id: 'console', label: 'Console', icon: 'terminal', perm: 'console' },
   { id: 'settings', label: 'Settings', icon: 'settings', perm: 'settings', mod: settingsTab },
   { id: 'players', label: 'Players', icon: 'users', perm: 'settings', mod: playersTab, game: 'minecraft' },
-  { id: 'mods', label: 'Mods', icon: 'box', perm: 'mods', mod: modsTab },
+  { id: 'accounts', label: 'Accounts', icon: 'users', perm: 'settings', mod: accountsTab, game: 'wow' },
+  { id: 'mods', label: 'Mods', icon: 'box', perm: 'mods', mod: modsTab, notGame: 'wow' },
   { id: 'files', label: 'Files', icon: 'folder', perm: 'files', mod: filesTab },
   { id: 'backups', label: 'Backups', icon: 'archive', perm: 'backups', mod: backupsTab },
   { id: 'schedules', label: 'Schedules', icon: 'clock', perm: 'schedules', mod: schedulesTab },
@@ -23,6 +25,7 @@ const TABS = [
 export function gameLine(s) {
   if (s.ark) return `${s.ark.editionLabel} · ${s.ark.map}`;
   if (s.cod) return `${s.cod.label} · ${s.cod.gametypeLabel}`;
+  if (s.wow) return `WoW: Wrath of the Lich King · realm "${s.wow.realmName}"`;
   if (s.mc.source === 'curseforge') return `${s.mc.curseforge?.packName || 'Modpack'} ${s.mc.curseforge?.versionName ? '· ' + s.mc.curseforge.versionName : ''}`;
   const l = { vanilla: 'Vanilla', forge: 'Forge', neoforge: 'NeoForge', fabric: 'Fabric' }[s.mc.loader] || s.mc.loader;
   return `Minecraft ${s.mc.mcVersion || ''} · ${l} ${s.mc.loaderVersion || ''}`;
@@ -33,7 +36,7 @@ export async function render(root, ctx) {
   const { server: initial } = await api.get(`/api/servers/${id}`);
   let s = initial;
   const can = (p) => s.perms.includes(p) || s.perms.includes('admin');
-  const tabs = TABS.filter((t) => (!t.perm || can(t.perm)) && (!t.game || t.game === s.game));
+  const tabs = TABS.filter((t) => (!t.perm || can(t.perm)) && (!t.game || t.game === s.game) && t.notGame !== s.game);
   const tab = tabs.find((t) => t.id === tabParam) || tabs[0];
   let consoleLines = [];
   let tabCleanup = null;
@@ -118,6 +121,11 @@ export async function render(root, ctx) {
             ? html`<p class="small">Join password: ${s.cod.joinPassword ? html`<code>${s.cod.joinPassword}</code> <button class="btn btn-sm btn-ghost" data-copy="${s.cod.joinPassword}">${icon('copy')}</button>` : html`<span class="pill pill-warn">none — anyone can join</span>`}</p>`
             : ''}
           ${s.cod ? html`<p class="muted small">In game, open the console (<kbd>~</kbd>) and type <code>${s.cod.joinPassword ? `password ${s.cod.joinPassword}; ` : ''}connect ${esc(s.connect || (lan[0] || 'IP') + ':' + s.cod.port)}</code>.</p>` : ''}
+          ${s.wow
+            ? html`<p class="small">Friends put this line in <code>Data\enUS\realmlist.wtf</code> (or <code>Data\enGB\…</code>) inside their WoW 3.3.5a folder:</p>
+                <div class="address"><code>set realmlist ${s.wow.address || lan[0] || '127.0.0.1'}</code><button class="btn btn-sm" data-copy="set realmlist ${s.wow.address || lan[0] || '127.0.0.1'}">${icon('copy')}Copy</button></div>
+                <p class="muted small">On this PC use <code>set realmlist 127.0.0.1</code>. They log in with the account you create in the Accounts tab.</p>`
+            : ''}
           ${s.ark ? html`<p class="muted small">In ARK, open the console (<kbd>~</kbd>) and type <code>open ${esc(s.connect || (lan[0] || 'IP') + ':' + s.ark.port)}</code> to join directly.</p>` : ''}
           <h4>Ports to forward on your router</h4>
           <table class="table compact"><tbody>${forward.map((p) => html`<tr><td><code>${p.port}</code></td><td>${p.proto}</td><td class="muted">${p.label}</td></tr>`)}</tbody></table>
@@ -128,7 +136,7 @@ export async function render(root, ctx) {
           <dl class="kv">
             <div><dt>State</dt><dd>${statusPill(rt.status)}</dd></div>
             <div><dt>Uptime</dt><dd id="uptime">${live && rt.startedAt ? fmtDuration(Date.now() - rt.startedAt) : '—'}</dd></div>
-            <div><dt>Players</dt><dd id="players">${rt.players ? `${rt.players.online} / ${rt.players.max}` : '—'}</dd></div>
+            <div><dt>Players</dt><dd id="players">${rt.players ? `${rt.players.online}${rt.players.max ? ' / ' + rt.players.max : ''}${rt.players.bots ? ` · ${rt.players.bots} bots` : ''}` : '—'}</dd></div>
             ${s.mc ? html`<div><dt>Memory limit</dt><dd>${(s.mc.memoryMb / 1024).toFixed(1)} GB</dd></div><div><dt>Java</dt><dd>${s.mc.javaMajor || 'auto'}</dd></div>` : ''}
             ${s.ark ? html`<div><dt>Mods</dt><dd>${s.ark.mods.length}</dd></div><div><dt>Max players</dt><dd>${s.ark.maxPlayers}</dd></div>` : ''}
             ${s.cod ? html`<div><dt>Mode</dt><dd>${s.cod.gametypeLabel}${rt.players && rt.players.map ? ' · ' + rt.players.map : ''}</dd></div><div><dt>XP</dt><dd>${s.cod.xpScale}x${s.cod.weaponXp ? ` · weapon ${s.cod.weaponXpScale}x` : ''}</dd></div><div><dt>Bots</dt><dd>${s.cod.bots.enabled ? `fill to ${s.cod.bots.fill}${rt.players && rt.players.bots != null ? ` (${rt.players.bots} in game)` : ''}` : 'off'}</dd></div>` : ''}
@@ -183,7 +191,9 @@ export async function render(root, ctx) {
   bindSparkHover(tabEl);
 
   // ---------- Console ----------
-  const QUICK = s.cod
+  const QUICK = s.wow
+    ? [['Save all', 'saveall'], ['Server info', 'server info'], ['Who is online', 'account onlinelist'], ['Announce…', 'announce ']]
+    : s.cod
     ? [['Status', 'status'], ['Next map', 'map_rotate'], ['Restart map', 'fast_restart'], ['Say…', 'say '], ['Kick…', 'clientkick ']]
     : s.ark
     ? [['Save world', 'SaveWorld'], ['List players', 'ListPlayers'], ['Wipe wild dinos', 'DestroyWildDinos'], ['Broadcast…', 'Broadcast ']]
@@ -202,7 +212,7 @@ export async function render(root, ctx) {
         <div class="console" id="console" tabindex="0" aria-label="Server console" aria-live="off">${raw(consoleLines.map(renderLine).join(''))}</div>
         <form class="console-input" id="cmd-form">
           <span class="prompt">${s.ark || s.cod ? 'RCON' : '>'}</span>
-          <input name="command" autocomplete="off" placeholder="${s.ark ? 'ARK admin command, e.g. ServerChat Hello' : s.cod ? 'Server command, e.g. map mp_rust' : 'Server command, e.g. say Hello'}" ${['running', 'starting'].includes(s.runtime.status) ? '' : 'disabled'}>
+          <input name="command" autocomplete="off" placeholder="${s.ark ? 'ARK admin command, e.g. ServerChat Hello' : s.cod ? 'Server command, e.g. map mp_rust' : s.wow ? 'GM command without the dot, e.g. announce Hello' : 'Server command, e.g. say Hello'}" ${['running', 'starting'].includes(s.runtime.status) ? '' : 'disabled'}>
           <button class="btn btn-primary" ${['running', 'starting'].includes(s.runtime.status) ? '' : 'disabled'}>Send</button>
         </form>
         ${s.ark ? html`<p class="muted small">ARK has no live console; the panel shows <code>ShooterGame.log</code> and sends commands over RCON once the server has finished loading.</p>` : ''}
@@ -288,7 +298,7 @@ export async function render(root, ctx) {
     } else if (msg.type === 'players') {
       s.runtime.players = msg.players;
       if (tab.id === 'overview' && $('#players')) {
-        $('#players').textContent = `${msg.players.online} / ${msg.players.max}`;
+        $('#players').textContent = `${msg.players.online}${msg.players.max ? ' / ' + msg.players.max : ''}${msg.players.bots ? ` · ${msg.players.bots} bots` : ''}`;
         $('#player-list').innerHTML = (msg.players.players || []).map((p) => `<span class="chip">${esc(p)}</span>`).join('');
       }
     } else if (msg.type === 'job') {

@@ -151,8 +151,8 @@ function createZip(srcDir, outFile, opts = {}) {
 }
 
 // Stream a zip of a directory straight into a writable stream (for downloads).
-function streamZip(srcDir, writable, ignore = []) {
-  const archive = archiver('zip', { zlib: { level: 3 } });
+function streamZip(srcDir, writable, ignore = [], level = 3) {
+  const archive = archiver('zip', { zlib: { level } });
   archive.on('warning', () => {});
   archive.on('error', (err) => writable.destroy(err));
   archive.pipe(writable);

@@ -17,6 +17,7 @@
   "dependencies": {
     "archiver": "7.0.1",
     "express": "5.2.1",
+    "mysql2": "3.24.5",
     "ws": "8.22.0",
     "yauzl": "3.4.0"
   }

@@ -218,6 +218,7 @@ export function copyText(text) {
 export function artLabel(server) {
   if (server.ark) return 'ARK';
   if (server.cod) return server.cod.short;
+  if (server.wow) return 'WoW';
   return 'MC';
 }
 
@@ -225,6 +226,7 @@ export function gameArt(server) {
   const t = server.template || '';
   if (t.startsWith('ark')) return 'ark';
   if (t.startsWith('cod')) return 'cod';
+  if (t.startsWith('wow')) return 'wow';
   if (server.mc && server.mc.source === 'curseforge') return 'mc-cf';
   return 'mc';
 }

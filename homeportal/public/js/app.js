@@ -7,6 +7,7 @@ import * as serverView from './views/server.js';
 import * as users from './views/users.js';
 import * as settings from './views/settings.js';
 import * as account from './views/account.js';
+import * as fileshare from './views/fileshare.js';
 
 export const state = { user: null, panelName: 'HomePortal', servers: [] };
 
@@ -16,6 +17,7 @@ const routes = [
   { re: /^\/server\/([\w-]+)(?:\/(\w+))?$/, view: serverView },
   { re: /^\/users$/, view: users, admin: true },
   { re: /^\/settings$/, view: settings, admin: true },
+  { re: /^\/share-admin$/, view: fileshare, admin: true },
   { re: /^\/account$/, view: account },
 ];
 
@@ -63,6 +65,7 @@ function shell() {
           ${admin
             ? html`<div class="nav-label">Admin</div>
               <a href="#/users" data-nav="/users">${icon('users')}<span>Users &amp; access</span></a>
+              <a href="#/share-admin" data-nav="/share-admin">${icon('archive')}<span>File share</span></a>
               <a href="#/settings" data-nav="/settings">${icon('settings')}<span>Panel settings</span></a>`
             : ''}
         </nav>

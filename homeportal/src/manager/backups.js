@@ -20,7 +20,7 @@ function list(server) {
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith('.zip'))
+    .filter((f) => f.endsWith('.zip') && !f.startsWith('_'))
     .map((f) => {
       const st = fs.statSync(path.join(dir, f));
       const m = /^[\d-]+_[\d-]+_(.+)\.zip$/.exec(f);
@@ -39,10 +39,24 @@ function resolveBackup(server, name) {
 async function create(instance, { reason = 'manual', log }) {
   const server = instance.server;
   const game = instance.game;
-  const { root, ignore } = game.backupConfig(server);
-  if (!fs.existsSync(root)) throw new Error('Nothing to back up yet (server files not found)');
+  let { root, ignore } = game.backupConfig(server);
   const name = `${stamp()}_${String(reason).replace(/[^\w]+/g, '-').slice(0, 30)}.zip`;
   const out = path.join(dirFor(server), name);
+  let staging = null;
+  if (game.prepareBackup) {
+    // Games whose saves live in a database write a dump into a staging folder first.
+    staging = path.join(dirFor(server), '_staging');
+    fs.rmSync(staging, { recursive: true, force: true });
+    fs.mkdirSync(staging, { recursive: true });
+    try {
+      await game.prepareBackup(instance, staging, log);
+    } catch (err) {
+      fs.rmSync(staging, { recursive: true, force: true });
+      throw err;
+    }
+    root = staging;
+  }
+  if (!fs.existsSync(root)) throw new Error('Nothing to back up yet (server files not found)');
   const running = !!instance.child && instance.status === 'running';
   if (running && game.beforeBackup) {
     log.info('Saving the world before backing up...');
@@ -57,6 +71,7 @@ async function create(instance, { reason = 'manual', log }) {
     log.info(`Backup written (${(bytes / 1048576).toFixed(1)} MB).`);
   } finally {
     if (running && game.afterBackup) await game.afterBackup(instance).catch(() => {});
+    if (staging) fs.rmSync(staging, { recursive: true, force: true });
   }
   prune(server);
   return name;
@@ -72,6 +87,18 @@ async function restore(instance, name, log) {
   const server = instance.server;
   if (instance.child) throw new HttpError(409, 'Stop the server before restoring a backup');
   const file = resolveBackup(server, name);
+  if (instance.game.restoreBackup) {
+    const tmp = path.join(dirFor(server), '_restore');
+    fs.rmSync(tmp, { recursive: true, force: true });
+    try {
+      await extractZip(file, tmp);
+      await instance.game.restoreBackup(instance, tmp, log);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+    log.info('Restore complete.');
+    return;
+  }
   const { root } = instance.game.backupConfig(server);
   const tops = new Set((await listZip(file)).map((n) => n.split('/')[0]).filter(Boolean));
   log.info(`Restoring ${name}: replacing ${[...tops].join(', ')}`);

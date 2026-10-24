@@ -4,6 +4,7 @@ import { html, $, on, icon, toast, fmtBytes, statusPill, gameArt, artLabel, copy
 function gameLabel(s) {
   if (s.ark) return s.ark.editionLabel;
   if (s.cod) return s.cod.label;
+  if (s.wow) return 'WoW: Wrath of the Lich King';
   if (s.mc) {
     if (s.mc.source === 'curseforge') return s.mc.curseforge?.packName || 'CurseForge modpack';
     const l = { vanilla: 'Vanilla', forge: 'Forge', neoforge: 'NeoForge', fabric: 'Fabric' }[s.mc.loader] || s.mc.loader;
@@ -14,6 +15,7 @@ function gameLabel(s) {
 
 function subLabel(s) {
   if (s.ark) return `${s.ark.map} · ${s.ark.mods.length} mod${s.ark.mods.length === 1 ? '' : 's'}`;
+  if (s.wow) return `Realm: ${s.wow.realmName}`;
   if (s.cod) return `${s.cod.gametypeLabel} · ${s.cod.maps} maps · ${s.cod.xpScale}x XP${s.cod.bots.enabled ? ' · bots' : ''}`;
   if (s.mc && s.mc.source === 'curseforge') return `${s.mc.curseforge?.versionName || ''} · MC ${s.mc.mcVersion || '?'}`;
   return `${(s.mc.memoryMb / 1024).toFixed(1)} GB RAM`;
@@ -23,7 +25,7 @@ function card(s) {
   const rt = s.runtime;
   const running = ['running', 'starting', 'stopping'].includes(rt.status);
   const canControl = s.perms.includes('control');
-  const players = rt.players ? `${rt.players.online}/${rt.players.max}${rt.players.bots ? ` +${rt.players.bots}🤖` : ''}` : '—';
+  const players = rt.players ? `${rt.players.online}${rt.players.max ? '/' + rt.players.max : ''}${rt.players.bots ? ` +${rt.players.bots}🤖` : ''}` : '—';
   const job = rt.job && rt.job.status === 'running' ? rt.job : null;
   return html`
     <article class="server-card" data-id="${s.id}">
@@ -131,7 +133,7 @@ export async function render(root, { state, refreshServers }) {
     } else if (msg.type === 'players') {
       s.runtime.players = msg.players;
       const el = root.querySelector(`[data-id="${s.id}"] [data-f=players]`);
-      if (el) el.textContent = `${msg.players.online}/${msg.players.max}`;
+      if (el) el.textContent = `${msg.players.online}${msg.players.max ? '/' + msg.players.max : ''}${msg.players.bots ? ` +${msg.players.bots}🤖` : ''}`;
     } else if (msg.type === 'job') {
       const wasRunning = s.runtime.job && s.runtime.job.status === 'running';
       s.runtime.job = msg.job;

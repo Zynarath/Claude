@@ -137,6 +137,11 @@ class Manager extends EventEmitter {
       if (!String(c.gameDir || '').trim()) throw new HttpError(400, 'Enter the folder where the game is installed');
       if (games.cod.TITLES[tpl.codTitle].pluto && !String(c.plutoKey || '').trim()) throw new HttpError(400, 'Enter your Plutonium server key');
     }
+    if (tpl.game === 'wow') {
+      const d = games.wow.detect(input.wow && input.wow.root);
+      if (!d.layout || d.problems.length) throw new HttpError(400, d.problems.join(' ') || 'Choose the server folder');
+      if (db.data.servers.some((s) => s.wow && path.resolve(s.wow.root) === path.resolve(d.root))) throw new HttpError(400, 'That folder is already used by another server');
+    }
     if (tpl.game === 'minecraft' && !input.eulaAccepted) throw new HttpError(400, 'You must accept the Minecraft EULA');
     if (tpl.game === 'minecraft' && tpl.source === 'curseforge' && !(input.mc && input.mc.modId && input.mc.fileId)) {
       throw new HttpError(400, 'Pick a modpack and version');
@@ -165,6 +170,7 @@ class Manager extends EventEmitter {
     const key = CONFIG_KEY[tpl.game];
     const gameInput = { ...input, [key]: { ...(input[key] || {}), source: tpl.source, edition: tpl.edition, title: tpl.codTitle } };
     server[key] = game.defaults(gameInput);
+    if (game.resolveDir) server.dir = game.resolveDir(server); // games that run from an existing install
     this.checkPortConflicts(server);
     if (tpl.source === 'curseforge') {
       try {

@@ -149,6 +149,7 @@ async function ensureChannel(server) {
 
 function describe(server) {
   if (server.ark) return games.ark.EDITIONS[server.ark.edition].label + ' · ' + server.ark.map;
+  if (server.wow) return `WoW: Wrath of the Lich King · realm ${server.wow.realmName || server.name}`;
   if (server.cod) {
     const t = games.cod.TITLES[server.cod.title];
     return `${t.label} · ${(t.gametypes.find((g) => g[0] === server.cod.gametype) || [])[1] || server.cod.gametype}`;
@@ -223,6 +224,10 @@ function onStatus(id, status) {
       fields.push({ name: 'XP', value: `${server.cod.xpScale}x${t.weaponXp ? ` · weapon ${server.cod.weaponXpScale}x` : ''}` });
       if (server.cod.bots.enabled) fields.push({ name: 'Bots', value: `fill to ${server.cod.bots.fill}` });
       if (server.cod.password) fields.push({ name: 'Password', value: s().includePassword ? `||${server.cod.password}||` : 'Required (ask in the group)' });
+    }
+    if (server.wow) {
+      fields.push({ name: 'Realmlist', value: `\`set realmlist ${server.wow.address || db.data.settings.publicAddress || '127.0.0.1'}\`` });
+      fields[0].value = null; // the "Join" host:port doesn't apply to WoW
     }
     if (server.mc) fields.push({ name: 'Version', value: `${server.mc.mcVersion || ''} ${server.mc.loader !== 'vanilla' ? server.mc.loader : ''}`.trim() });
     post(server, { title: `🟢 ${server.name} is online`, color: 'ok', fields });

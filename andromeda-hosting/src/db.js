@@ -30,6 +30,9 @@ if (fs.existsSync(FILE)) {
   }
 }
 
+// One-time rebrand: carry an older install's default name over to the new one.
+if (data.settings.panelName === 'HomePortal') data.settings.panelName = 'Andromeda Hosting';
+
 let timer = null;
 function saveNow() {
   clearTimeout(timer);

@@ -109,6 +109,7 @@ export async function render(root, ctx) {
       <div class="grid-2">
         <div class="panel">
           <h3>Connect</h3>
+          ${s.wow ? wowConnect(lan, forward) : html`
           ${s.connect
             ? html`<div class="address"><code>${s.connect}</code><button class="btn btn-sm" data-copy="${s.connect}">${icon('copy')}Copy</button></div>
                 <p class="muted small">Public address. For players on your own network use <code>${lan[0] || 'your LAN IP'}:${s.ports[0].port}</code>.</p>`
@@ -121,16 +122,10 @@ export async function render(root, ctx) {
             ? html`<p class="small">Join password: ${s.cod.joinPassword ? html`<code>${s.cod.joinPassword}</code> <button class="btn btn-sm btn-ghost" data-copy="${s.cod.joinPassword}">${icon('copy')}</button>` : html`<span class="pill pill-warn">none — anyone can join</span>`}</p>`
             : ''}
           ${s.cod ? html`<p class="muted small">In game, open the console (<kbd>~</kbd>) and type <code>${s.cod.joinPassword ? `password ${s.cod.joinPassword}; ` : ''}connect ${esc(s.connect || (lan[0] || 'IP') + ':' + s.cod.port)}</code>.</p>` : ''}
-          ${s.wow
-            ? html`<p class="small">Friends put this line in <code>Data\enUS\realmlist.wtf</code> (or <code>Data\enGB\…</code>) inside their WoW 3.3.5a folder:</p>
-                <div class="address"><code>set realmlist ${s.wow.address || lan[0] || '127.0.0.1'}</code><button class="btn btn-sm" data-copy="set realmlist ${s.wow.address || lan[0] || '127.0.0.1'}">${icon('copy')}Copy</button></div>
-                <p><button class="btn btn-sm" id="wow-diag">${icon('activity')}Check connection</button></p><div id="wow-diag-out"></div>
-                <p class="muted small">Use the same line on this PC. If you can pick the realm but then get stuck at "Connecting", run <code>scripts\use-domain-on-this-pc.ps1</code> once as Administrator (see docs/wow.md). It makes the name point to this PC, for this PC only.</p>`
-            : ''}
           ${s.ark ? html`<p class="muted small">In ARK, open the console (<kbd>~</kbd>) and type <code>open ${esc(s.connect || (lan[0] || 'IP') + ':' + s.ark.port)}</code> to join directly.</p>` : ''}
           <h4>Ports to forward on your router</h4>
           <table class="table compact"><tbody>${forward.map((p) => html`<tr><td><code>${p.port}</code></td><td>${p.proto}</td><td class="muted">${p.label}</td></tr>`)}</tbody></table>
-          <p class="muted small">Not needed if you and your friends connect over Tailscale or ZeroTier.</p>
+          <p class="muted small">Not needed if you and your friends connect over Tailscale or ZeroTier.</p>`}
         </div>
         <div class="panel">
           <h3>Status</h3>
@@ -166,6 +161,27 @@ export async function render(root, ctx) {
       }
     };
   };
+
+  // WoW joins through a realmlist line, not host:port, so it gets its own Connect card.
+  function wowConnect(lan, forward) {
+    const addr = s.wow.address || '127.0.0.1';
+    const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(addr);
+    const line = `set realmlist ${addr}`;
+    return html`
+      <p class="small">Everyone, you included, puts this one line in <code>Data\\enUS\\realmlist.wtf</code> (or <code>enGB</code>) in their WoW 3.3.5a folder:</p>
+      <div class="address"><code>${line}</code><button class="btn btn-sm" data-copy="${line}">${icon('copy')}Copy</button></div>
+      ${addr === '127.0.0.1'
+        ? html`<div class="callout callout-warn">${icon('alert')}<div>The realm is announced at <code>127.0.0.1</code>, so only this PC can join. Set your domain (e.g. play.thefinalhour.us) under <a href="#/settings">Panel settings → Public address</a> or <em>Settings → Realm</em>, then restart.</div></div>`
+        : isIp
+          ? html`<div class="callout callout-warn">${icon('alert')}<div>The realm is announced at the IP <code>${addr}</code>. Friends can join, but <strong>you can't from this PC</strong> (routers don't loop back to their own public IP), and it breaks if your IP changes. Use a hostname like play.thefinalhour.us in <em>Settings → Realm</em>, then restart.</div></div>`
+          : html`<p class="muted small">On this PC, <code>${addr}</code> must point to 127.0.0.1: run <code>scripts\\use-domain-on-this-pc.ps1 -Hostname ${addr}</code> once as Administrator. Friends need nothing extra.</p>`}
+      <p class="muted small">They log in with the account you create for them in the <a href="#/server/${s.id}/accounts">Accounts</a> tab. The realm list is updated with this address every time the server starts.</p>
+      <p><button class="btn btn-sm" id="wow-diag">${icon('activity')}Check connection</button></p>
+      <div id="wow-diag-out"></div>
+      <h4>Ports to forward on your router</h4>
+      <table class="table compact"><tbody>${forward.map((p) => html`<tr><td><code>${p.port}</code></td><td>${p.proto}</td><td class="muted">${p.label}</td></tr>`)}</tbody></table>
+      <p class="muted small">Never forward the database port (3310).</p>`;
+  }
 
   function jobCard(job) {
     const running = job.status === 'running';

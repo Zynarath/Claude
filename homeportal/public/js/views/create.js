@@ -198,7 +198,7 @@ export async function render(root, { navigate, refreshServers }) {
       <div class="callout span-2">${icon('info')}<div>HomePortal runs the <strong>SPP Classics V2</strong> server package (cMaNGOS + Mangosbot bots + its own MySQL and map data).
         Install it first: download <a href="https://github.com/celguar/spp-classics-cmangos/releases/tag/v2.0" target="_blank" rel="noopener">SPP_Classics_V2.exe</a>,
         extract it, run <code>Server_Update.bat</code>, choose <strong>WotLK</strong> and let it finish downloading — then close it. Any other cMaNGOS WotLK folder works too.</div></div>
-      <label class="field span-2"><span>Server folder</span><div class="input-row"><input name="root" required placeholder="e.g. C:\Games\SPP_Classics_V2" autocomplete="off"><button type="button" class="btn" id="wow-check">${icon('search')}Check</button></div>
+      <label class="field span-2"><span>Server folder</span><div class="input-row"><input name="root" required placeholder="e.g. C:\\Games\\SPP_Classics_V2" autocomplete="off"><button type="button" class="btn" id="wow-check">${icon('search')}Check</button></div>
         <small class="hint">The SPP_Classics_V2 folder (or its SPP_Server folder). The panel uses the files where they are; nothing is copied.</small></label>
       <div id="wow-detect" class="span-2"></div>
       <label class="field span-2"><span>Realm name</span><input name="realmName" maxlength="32" placeholder="Same as the server name"></label>

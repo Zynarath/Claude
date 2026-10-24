@@ -373,6 +373,47 @@ const wow = {
     }));
   },
 
+  // Walks the same path a WoW client takes and reports where it breaks.
+  async diagnose(server, instance) {
+    const checks = [];
+    const add = (ok, title, detail) => checks.push({ ok, title, detail });
+    const p = paths(server);
+    const realmId = Number(readConf(p.confDir, 'mangosd.conf').get('RealmID')) || 1;
+    const authPort = confPort(server, 'realmd.conf', 'RealmServerPort', 3724);
+    add(instance.status === 'running', 'World server finished loading',
+      instance.status === 'running' ? 'mangosd is up.' : `Status is "${instance.status}". The first start creates the random bots and can take many minutes; wait for Online.`);
+    add(instance.auxRunning('realmd') || (await portOpen('127.0.0.1', authPort)), `Login server answers on port ${authPort}`, 'realmd must be running for the client to log in.');
+    let realm = null;
+    try {
+      realm = (await query(server, 'Login', 'SELECT * FROM realmlist WHERE id = ?', [realmId]))[0]; // columns vary between forks
+      if (!realm) add(false, 'Realm list entry', `No realm with id ${realmId} (RealmID in mangosd.conf) in the realmlist table.`);
+    } catch (err) {
+      add(false, 'Realm list readable', `Couldn't read the realm list: ${err.message}`);
+    }
+    if (realm) {
+      add(true, 'Realm list entry', `"${realm.name}" → ${realm.address}:${realm.port} (this exact address is sent to every client)`);
+      if (realm.realmflags !== undefined) add(!(realm.realmflags & 2), 'Realm marked online', realm.realmflags & 2 ? 'The realm is flagged offline. mangosd clears this once it has finished starting; if it stays, the world server is still loading or failed.' : 'mangosd has marked the realm online.');
+      const builds = String(realm.realmbuilds || '').split(/\s+/).filter(Boolean);
+      add(!builds.length || builds.includes('12340'), 'Accepts the 3.3.5a client (build 12340)', builds.length ? `Allowed builds: ${builds.join(', ')}` : 'No build restriction.');
+      if (realm.allowedSecurityLevel !== undefined) add(!(realm.allowedSecurityLevel > 0), 'Open to normal players', realm.allowedSecurityLevel > 0 ? `Only GM level ${realm.allowedSecurityLevel}+ can enter (realmlist.allowedSecurityLevel).` : 'Any account can enter.');
+      let ip = realm.address;
+      if (!net.isIP(ip)) {
+        try {
+          ip = (await require('dns').promises.lookup(realm.address, { family: 4 })).address;
+          add(true, `"${realm.address}" resolves on this PC`, `→ ${ip}${ip.startsWith('127.') ? ' (this PC, via the hosts file)' : ' — on the hosting PC this should be 127.0.0.1; run scripts\\use-domain-on-this-pc.ps1 as Administrator'}`);
+        } catch (err) {
+          add(false, `"${realm.address}" resolves on this PC`, `DNS lookup failed (${err.code || err.message}). Check the domain/DNS record.`);
+          ip = null;
+        }
+      }
+      if (ip) {
+        const ok = await portOpen(ip, realm.port, 2500);
+        add(ok, `World port reachable at ${ip}:${realm.port}`, ok ? 'This is where the client goes after you pick the realm.' : 'Nothing answered. If this is your public IP, your router can\'t loop back to it from inside your network: use the hosts-file script on this PC.');
+      }
+    }
+    return checks;
+  },
+
   async accountExists(server, username) {
     const rows = await query(server, 'Login', 'SELECT id FROM account WHERE username = ?', [username.toUpperCase()]);
     return rows.length > 0;

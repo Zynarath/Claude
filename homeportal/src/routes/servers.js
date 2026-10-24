@@ -414,6 +414,11 @@ const gm = (v) => {
   return n;
 };
 
+router.get('/servers/:id/wow/diagnose', async (req, res) => {
+  const inst = wowOnly(load(req, 'settings'));
+  res.json({ checks: await inst.game.diagnose(inst.server, inst) });
+});
+
 router.get('/servers/:id/wow/accounts', async (req, res) => {
   const inst = wowOnly(load(req, 'settings'));
   try {

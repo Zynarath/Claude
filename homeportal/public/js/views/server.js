@@ -124,6 +124,7 @@ export async function render(root, ctx) {
           ${s.wow
             ? html`<p class="small">Friends put this line in <code>Data\enUS\realmlist.wtf</code> (or <code>Data\enGB\…</code>) inside their WoW 3.3.5a folder:</p>
                 <div class="address"><code>set realmlist ${s.wow.address || lan[0] || '127.0.0.1'}</code><button class="btn btn-sm" data-copy="set realmlist ${s.wow.address || lan[0] || '127.0.0.1'}">${icon('copy')}Copy</button></div>
+                <p><button class="btn btn-sm" id="wow-diag">${icon('activity')}Check connection</button></p><div id="wow-diag-out"></div>
                 <p class="muted small">Use the same line on this PC. If you can pick the realm but then get stuck at "Connecting", run <code>scripts\use-domain-on-this-pc.ps1</code> once as Administrator (see docs/wow.md). It makes the name point to this PC, for this PC only.</p>`
             : ''}
           ${s.ark ? html`<p class="muted small">In ARK, open the console (<kbd>~</kbd>) and type <code>open ${esc(s.connect || (lan[0] || 'IP') + ':' + s.ark.port)}</code> to join directly.</p>` : ''}
@@ -178,6 +179,18 @@ export async function render(root, ctx) {
   }
 
   on(tabEl, 'click', '[data-copy]', (_e, el) => copyText(el.dataset.copy));
+  on(tabEl, 'click', '#wow-diag', async (_e, el) => {
+    el.disabled = true;
+    const out = $('#wow-diag-out');
+    out.innerHTML = '<div class="loading">Checking…</div>';
+    try {
+      const { checks } = await api.get(`/api/servers/${s.id}/wow/diagnose`);
+      out.innerHTML = html`<ul class="diag">${checks.map((c) => html`<li class="${c.ok ? 'ok' : 'bad'}">${icon(c.ok ? 'check' : 'alert')}<div><strong>${c.title}</strong><small>${c.detail}</small></div></li>`)}</ul>`.s;
+    } catch (err) {
+      out.innerHTML = html`<div class="form-error">${err.message}</div>`.s;
+    }
+    el.disabled = false;
+  });
   on(tabEl, 'change', '[data-flag]', async (_e, el) => {
     try {
       await api.patch(`/api/servers/${s.id}`, { [el.dataset.flag]: el.checked });

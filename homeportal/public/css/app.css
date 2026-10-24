@@ -416,3 +416,10 @@ a.chip:hover { color: var(--text); text-decoration: none; }
 .checklist li.ok { color: var(--ok); }
 .checklist li.bad { color: var(--bad); }
 .panel.detect { margin: 0 0 14px; }
+.diag { list-style: none; padding: 0; margin: 8px 0 12px; display: flex; flex-direction: column; gap: 6px; }
+.diag li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.diag li.ok > .ic { color: var(--ok); }
+.diag li.bad { background: var(--bad-soft); }
+.diag li.bad > .ic { color: var(--bad); }
+.diag li div { display: flex; flex-direction: column; }
+.diag small { color: var(--text-2); }
